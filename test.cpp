@@ -77,6 +77,50 @@ int del_key_in_stu(MYSQL *mysql,const std::string& name)
     return ret;
 }
 
+// 返回用户的所有信息,name为空返回所有
+void get_all_in_stu(MYSQL *mysql,const std::string& name="")
+{
+    std::string sql_cmd = "select * from ";
+    sql_cmd += TABLENAME;
+    if(name.size()!=0)
+    {
+        sql_cmd += " where name='";
+        sql_cmd += name;
+        sql_cmd += "'";
+    }
+    sql_cmd += ";";
+    cout << "[INFO] " << sql_cmd << endl;
+
+    int ret = mysql_query(mysql,sql_cmd.c_str());
+    if(ret!=0)
+    {
+        cerr << "[ERR] mysql query error: " << mysql_error(mysql) << endl; 
+        return ;
+    }
+    // 获取结果
+    MYSQL_RES *res = mysql_store_result(mysql);
+    if (res == nullptr) 
+    { 
+        cerr << "[ERR] mysql store_result error: " << mysql_error(mysql) << endl; 
+        return ; 
+    }
+    
+    int row = mysql_num_rows(res); // 行
+    int col = mysql_num_fields(res); //列
+    printf("%10s%10s%10s%10s\n", "ID", "姓名", "年龄", "成绩"); 
+    for (int i = 0; i < row; i++) 
+    { 
+        MYSQL_ROW row_data = mysql_fetch_row(res); 
+        for (int i = 0; i < col; i++) 
+        {
+            printf("%10s", row_data[i]); 
+        }
+        printf("\n"); 
+    } 
+    // 释放结果
+    mysql_free_result(res);
+}
+
 int main()
 {   
     // 连接数据库
@@ -104,13 +148,17 @@ int main()
     // add_key_to_stu(mysql,"牛爷爷",50,64.6);
     // add_key_to_stu(mysql,"小图图",5,72.8);
     // add_key_to_stu(mysql,"大司马",42,87.3);
-    add_key_to_stu(mysql,"乐迪",32,99);
+    // add_key_to_stu(mysql,"乐迪",32,99);
 
     // 修改已有数据
     // mod_score_in_stu(mysql,"牛爷爷",70);
 
     // 删除已有键值
     // del_key_in_stu(mysql,"牛爷爷");
+
+    get_all_in_stu(mysql);
+    cout << endl;
+    get_all_in_stu(mysql,"乐迪");
 
     // 关闭连接
     mysql_close(mysql); 
