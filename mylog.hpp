@@ -21,6 +21,12 @@ namespace vod
 // 日志默认等级和日志字符串大小
 #define LOG_DEFAULT_LEVEL LOG_WARINING
 #define LOG_MAX_SIZE 1024
+// 日志时间选项
+#define LOG_TIME_DISABLE  0
+#define LOG_TIME_STRING  1
+#define LOG_TIME_STAMP 2
+#define LOG_TIME_BOTH 3
+
     // 存放了日志等级的数组，用define的日志等级作为下标来映射对应字符串
     const char *log_level[] = {"DEBUG", "INFO", "WARINING", "ERROR", "FATAL"};
     // 获取当前可读时间
@@ -40,9 +46,10 @@ namespace vod
     class Logger
     {
     public:
-        Logger(size_t log_level = LOG_DEFAULT_LEVEL, size_t log_size = LOG_MAX_SIZE)
+        Logger(size_t log_level = LOG_DEFAULT_LEVEL, size_t log_size = LOG_MAX_SIZE,size_t log_time=LOG_TIME_STAMP)
             : _level(log_level),
-              _log_size(log_size)
+              _log_size(log_size),
+              _log_time(log_time)
         {
             _log_info.resize(log_size);
         }
@@ -107,6 +114,7 @@ namespace vod
     private:
         size_t _level;    // 日志等级
         size_t _log_size; // 最大可以写入的字符串个数
+        size_t _log_time; // 以何种形式记录日志时间
         std::string _log_info;
 
         // 将format传入并通过可变参数列表，将多余参数写入一个字符串中
@@ -122,12 +130,41 @@ namespace vod
             FILE *out = (level >= LOG_ERROR) ? stderr : stdout;
             def_name = def_name == nullptr ? "unknow" : def_name; // 判断defname是否为空
             // 格式化打印到文件中
-            fprintf(out, "[%s] %u | %s | %s | %s\n",
-                    GetTimeStr().c_str(),
-                    (unsigned int)time(nullptr),
-                    log_level[level],
-                    def_name,
-                    log_info.c_str());
+            if(_log_time==LOG_TIME_DISABLE)
+                fprintf(out, "%s | %s | %s\n",
+                            log_level[level],
+                            def_name,
+                            log_info.c_str());
+            else
+                fprintf(out, "%s | %s | %s | %s\n",
+                        _getLogTime().c_str(),
+                        log_level[level],
+                        def_name,
+                        log_info.c_str());
+        }
+        //获取日志时间参数
+        std::string _getLogTime()
+        {
+            std::string time_log;
+            time_log.resize(40);
+            switch (_log_time)
+            {
+            case LOG_TIME_STRING:
+                sprintf((char*)time_log.c_str(),"%s",GetTimeStr().c_str());
+                break;
+            case LOG_TIME_STAMP:
+                sprintf((char*)time_log.c_str(),"%u",(unsigned int)time(nullptr));
+                break;
+            case LOG_TIME_BOTH:
+                sprintf((char*)time_log.c_str(),"[%s] %u",
+                                        GetTimeStr().c_str(),
+                                        (unsigned int)time(nullptr));
+                break;
+            default:
+                time_log = "";
+                break;
+            }
+            return time_log;
         }
     };
 }
