@@ -43,10 +43,10 @@ void JsonTest()
 
 void LogTest()
 {
-    vod::Logger _log(LOG_INFO,2048,LOG_TIME_DISABLE);
+    vod::Logger _log(LOG_DEBUG,2048,LOG_TIME_STRING);
     _log.debug("test","%s","debug_Test");
     _log.info("test","%s","this in info");
-    _log.warning("test","%s","this is warning");
+    _log.warning("test","%s %d","this is warning",333);
     _log.error("test","%s","this is err");
     _log.fatal("test","%s","this is fatal!!!");
 }
