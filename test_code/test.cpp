@@ -51,11 +51,18 @@ void LogTest()
     _log.fatal("test","%s","this is fatal!!!");
 }
 
+void LogErrTest()
+{
+	Json::Value stu;
+	std::string str = "{\"学习\":[\"语文\",\"EN\"]";//不合法的json字符串
+	vod::JsonUtil::UnSerialize(str,&stu);//成功报错
+}
+
 int main()
 {
     //FileTest();
     //JsonTest();
-    LogTest();
-    
+    //LogTest();
+	LogErrTest();
     return 0;
 }

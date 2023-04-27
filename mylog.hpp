@@ -156,6 +156,7 @@ struct LogTime{
             return time_log;
         }
     };
+    Logger _log(LogType::Info,2048,LogTime::String);
 }
 
 #endif

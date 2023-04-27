@@ -36,8 +36,7 @@ namespace vod
             int ret = access(_path.c_str(), F_OK);
             if (ret != 0)
             {
-
-                cerr << "file is not exists\n";
+                _log.error("FileUtil.Exists","file '%s' is't exists",_path.c_str());
                 return false;
             }
             return true;
@@ -56,7 +55,7 @@ namespace vod
             int ret = stat(_path.c_str(), &st);
             if (ret != 0)
             {
-                cerr << "get file stat failed!\n";
+                _log.error("FileUtil.Size","get file '%s' stat failed!",_path.c_str());
                 return 0;
             }
             return st.st_size;
@@ -68,7 +67,7 @@ namespace vod
             ifs.open(_path, std::ios::binary);
             if (ifs.is_open() == false)
             {
-                cerr << "open file failed!\n";
+                _log.error("FileUtil.GetContent","open file '%s' failed!",_path.c_str());
                 return false;
             }
             size_t flen = this->Size();
@@ -76,7 +75,7 @@ namespace vod
             ifs.read(&(*body)[0], flen);
             if (ifs.good() == false)
             {
-                cerr << "read file content failed!\n";
+                _log.error("FileUtil.GetContent","read file '%s' failed!",_path.c_str());
                 ifs.close();
                 return false;
             }
@@ -90,13 +89,13 @@ namespace vod
             ofs.open(_path, std::ios::binary);
             if (ofs.is_open() == false)
             {
-                cerr << "open file failed!\n";
+                _log.error("FileUtil.SetContent","open file '%s' failed!",_path.c_str());
                 return false;
             }
             ofs.write(body.c_str(), body.size());
             if (ofs.good() == false)
             {
-                cerr << "write file content failed!\n";
+                _log.error("FileUtil.SetContent","write file '%s' failed!",_path.c_str());
                 ofs.close();
                 return false;
             }
@@ -134,7 +133,7 @@ namespace vod
             int ret = sw->write(value, &ss);
             if (ret != 0)
             {
-                cerr << "Serialize failed!\n";
+                _log.error("JsonUtil.Ser","Serialize failed!");
                 return false;
             }
             *body = ss.str();
@@ -150,7 +149,7 @@ namespace vod
             bool ret = cr->parse(body.c_str(), body.c_str() + body.size(), value, &err);
             if (ret == false)
             {
-                cerr << "UnSerialize failed!\n";
+                _log.error("JsonUtil.UnSer","UnSerialize failed!");
                 return false;
             }
             return true;
