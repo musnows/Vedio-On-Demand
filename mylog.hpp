@@ -12,20 +12,33 @@
 
 namespace vod
 {
+// #define LOG_DEBUG 0
+// #define LOG_INFO 1
+// #define LOG_WARINING 2
+// #define LOG_ERROR 3
+// #define LOG_FATAL 4
+
+// #define LOG_TIME_DISABLE 0
+// #define LOG_TIME_STRING 1
+// #define LOG_TIME_STAMP 2
+// #define LOG_TIME_BOTH 3
+
 // 日志等级
-#define LOG_DEBUG 0
-#define LOG_INFO 1
-#define LOG_WARINING 2
-#define LOG_ERROR 3
-#define LOG_FATAL 4
-// 日志默认等级和日志字符串大小
-#define LOG_DEFAULT_LEVEL LOG_WARINING
-#define LOG_MAX_SIZE 1024
+struct LogType{
+    static const size_t Debug = 0;   // 调试
+    static const size_t Info = 1;    // 正常信息
+    static const size_t Warning = 2; // 警告
+    static const size_t Error = 3;   // 错误
+    static const size_t Fatal = 4;   // 致命错误
+};
+
 // 日志时间选项
-#define LOG_TIME_DISABLE 0
-#define LOG_TIME_STRING 1
-#define LOG_TIME_STAMP 2
-#define LOG_TIME_BOTH 3
+struct LogTime{
+    static const size_t Disable = 0;//禁用
+    static const size_t String = 1; //可读时间
+    static const size_t Stamp = 2;  //时间戳
+    static const size_t Both = 3;   //可读时间+时间戳
+};
 
     // 存放了日志等级的数组，用define的日志等级作为下标来映射对应字符串
     const char *log_level[] = {"DEBUG", "INFO", "WARINING", "ERROR", "FATAL"};
@@ -45,9 +58,12 @@ namespace vod
     // 实例化一个简单的logger对象
     class Logger
     {
+        // 日志默认等级和日志字符串大小
+        #define LOG_DEFAULT_LEVEL LogType::Warning // 默认等级为警告
+        #define LOG_SIZE 1024
     public:
         // log_level设置基础日志等级，小于此等级的日志不打印；log_size日志中允许打印的最大字符长度；log_time为日志中打印时间的格式
-        Logger(size_t log_level = LOG_DEFAULT_LEVEL, size_t log_size = LOG_MAX_SIZE, size_t log_time = LOG_TIME_STAMP)
+        Logger(size_t log_level = LOG_DEFAULT_LEVEL, size_t log_size = LOG_SIZE, size_t log_time = LogTime::Stamp)
             : _level(log_level),
               _log_size(log_size),
               _log_time(log_time)
@@ -59,27 +75,27 @@ namespace vod
         template <typename... Args>
         void debug(const char *def_name, const char *format, Args &&...args)
         {
-            _logging(LOG_DEBUG, def_name, format, std::forward<Args>(args)...);
+            _logging(LogType::Debug, def_name, format, std::forward<Args>(args)...);
         }
         template <typename... Args>
         void info(const char *def_name, const char *format, Args &&...args)
         {
-            _logging(LOG_INFO, def_name, format, std::forward<Args>(args)...);
+            _logging(LogType::Info, def_name, format, std::forward<Args>(args)...);
         }
         template <typename... Args>
         void warning(const char *def_name, const char *format, Args &&...args)
         {
-            _logging(LOG_WARINING, def_name, format, std::forward<Args>(args)...);
+            _logging(LogType::Warning, def_name, format, std::forward<Args>(args)...);
         }
         template <typename... Args>
         void error(const char *def_name, const char *format, Args &&...args)
         {
-            _logging(LOG_ERROR, def_name, format, std::forward<Args>(args)...);
+            _logging(LogType::Error, def_name, format, std::forward<Args>(args)...);
         }
         template <typename... Args>
         void fatal(const char *def_name, const char *format, Args &&...args)
         {
-            _logging(LOG_FATAL, def_name, format, std::forward<Args>(args)...);
+            _logging(LogType::Fatal, def_name, format, std::forward<Args>(args)...);
         }
 
     private:
@@ -91,9 +107,9 @@ namespace vod
         // 将format传入并通过可变参数列表，将多余参数写入一个字符串中
         void _logging(size_t level, const char *def_name, const char *format, ...)
         {
-            assert(level >= LOG_DEBUG && level <= LOG_FATAL);
-            if (level < _level)
-            { // 低于定义的等级，不打印
+            assert(level >= LogType::Debug && level <=  LogType::Fatal);
+            if (level < _level)// 低于定义的等级，不打印
+            { 
                 return;
             }
             // 使用c语言的可变参数列表来解包
@@ -103,10 +119,10 @@ namespace vod
             va_end(ap);
             // 根据日志等级选择打印到stderr/stdout
             // 超过了error的日志，要使用stderr打印
-            FILE *out = (level >= LOG_ERROR) ? stderr : stdout;
+            FILE *out = (level >= LogType::Error) ? stderr : stdout;
             def_name = def_name == nullptr ? "unknow" : def_name; // 判断defname是否为空
             // 格式化打印到文件中
-            if (_log_time == LOG_TIME_DISABLE)
+            if (_log_time == LogTime::Disable)
                 fprintf(out, "%s | %s | %s\n", log_level[level], def_name, _log_info.c_str());
             else
                 fprintf(out, "%s | %s | %s | %s\n",
@@ -122,13 +138,13 @@ namespace vod
             time_log.resize(40);
             switch (_log_time)
             {
-            case LOG_TIME_STRING:
+            case LogTime::String:
                 sprintf((char *)time_log.c_str(), "%s", GetTimeStr().c_str());
                 break;
-            case LOG_TIME_STAMP:
+            case LogTime::Stamp:
                 sprintf((char *)time_log.c_str(), "%u", (unsigned int)time(nullptr));
                 break;
-            case LOG_TIME_BOTH:
+            case LogTime::Both:
                 sprintf((char *)time_log.c_str(), "[%s] %u",
                         GetTimeStr().c_str(),
                         (unsigned int)time(nullptr));

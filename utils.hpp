@@ -14,7 +14,7 @@
 
 namespace vod
 {
-    // 展开常用的这两个
+    // 展开常用的
     using std::cerr;
     using std::cerr;
     using std::endl;
@@ -36,6 +36,7 @@ namespace vod
             int ret = access(_path.c_str(), F_OK);
             if (ret != 0)
             {
+
                 cerr << "file is not exists\n";
                 return false;
             }
