@@ -110,7 +110,7 @@ namespace vod
         std::string _log_info;
 
         // 将format传入并通过可变参数列表，将多余参数写入一个字符串中
-        void _logging(int level, const char *def_name, const std::string &log_info)
+        void _logging(size_t level, const char *def_name, const std::string &log_info)
         {
             assert(level >= LOG_DEBUG && level <= LOG_FATAL);
             if (level < _level)
