@@ -32,7 +32,7 @@ namespace vod
             int ret = access(_path.c_str(), F_OK);
             if (ret != 0)
             {
-                _log.error("FileUtil.Exists","file '%s' is't exists",_path.c_str());
+                _log.info("FileUtil.Exists","file '%s' is not exists",_path.c_str());
                 return false;
             }
             return true;
