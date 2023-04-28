@@ -40,8 +40,6 @@ struct LogTime{
     static const size_t Both = 3;   //可读时间+时间戳
 };
 
-    // 存放了日志等级的数组，用define的日志等级作为下标来映射对应字符串
-    const char *log_level[] = {"DEBUG", "INFO", "WARINING", "ERROR", "FATAL"};
     // 获取当前可读时间
     std::string GetTimeStr(const std::string &format_str = "%y-%m-%d %H:%M:%S")
     {
@@ -61,6 +59,8 @@ struct LogTime{
         // 日志默认等级和日志字符串大小
         #define LOG_DEFAULT_LEVEL LogType::Warning // 默认等级为警告
         #define LOG_SIZE 1024
+        // 存放了日志等级的数组，用define的日志等级作为下标来映射对应字符串
+        static const char *_log_level[6];
     public:
         // log_level设置基础日志等级，小于此等级的日志不打印；log_size日志中允许打印的最大字符长度；log_time为日志中打印时间的格式
         Logger(size_t log_level = LOG_DEFAULT_LEVEL, size_t log_size = LOG_SIZE, size_t log_time = LogTime::Stamp)
@@ -73,27 +73,27 @@ struct LogTime{
 
         // 使用完美转发来讲将参数传给logging函数
         template <typename... Args>
-        void debug(const char *def_name, const char *format, Args &&...args)
+        void debug(const std::string& def_name, const std::string& format, Args &&...args)
         {
             _logging(LogType::Debug, def_name, format, std::forward<Args>(args)...);
         }
         template <typename... Args>
-        void info(const char *def_name, const char *format, Args &&...args)
+        void info(const std::string& def_name, const std::string& format, Args &&...args)
         {
             _logging(LogType::Info, def_name, format, std::forward<Args>(args)...);
         }
         template <typename... Args>
-        void warning(const char *def_name, const char *format, Args &&...args)
+        void warning(const std::string& def_name, const std::string& format, Args &&...args)
         {
             _logging(LogType::Warning, def_name, format, std::forward<Args>(args)...);
         }
         template <typename... Args>
-        void error(const char *def_name, const char *format, Args &&...args)
+        void error(const std::string& def_name, const std::string& format, Args &&...args)
         {
             _logging(LogType::Error, def_name, format, std::forward<Args>(args)...);
         }
         template <typename... Args>
-        void fatal(const char *def_name, const char *format, Args &&...args)
+        void fatal(const std::string& def_name, const std::string& format, Args &&...args)
         {
             _logging(LogType::Fatal, def_name, format, std::forward<Args>(args)...);
         }
@@ -105,7 +105,7 @@ struct LogTime{
         std::string _log_info;
 
         // 将format传入并通过可变参数列表，将多余参数写入一个字符串中
-        void _logging(size_t level, const char *def_name, const char *format, ...)
+        void _logging(size_t level, const std::string& def_name, const std::string& format, ...)
         {
             assert(level >= LogType::Debug && level <=  LogType::Fatal);
             if (level < _level)// 低于定义的等级，不打印
@@ -114,21 +114,32 @@ struct LogTime{
             }
             // 使用c语言的可变参数列表来解包
             va_list ap;
-            va_start(ap, format);
-            vsnprintf((char *)_log_info.c_str(), _log_size - 1, format, ap);
+            //va_start(ap, format.c_str());//warning11
+            va_start(ap, format); //这里只是需要传入最后一个参数，并不是需要传入char*指针
+            // 根据format对缓冲区进行二次扩容，如果有长消息直接通过format传入
+            // 这样就避免了log info默认长度太小对日志输出长度的影响
+            if(format.size()>_log_info.size()){
+                _log_info.resize(format.size() + _log_size);
+            }
+            // 输出到缓冲区
+            vsnprintf((char *)_log_info.c_str(), _log_info.size() - 1, format.c_str(), ap);
             va_end(ap);
             // 根据日志等级选择打印到stderr/stdout
             // 超过了error的日志，要使用stderr打印
             FILE *out = (level >= LogType::Error) ? stderr : stdout;
-            def_name = def_name == nullptr ? "unknow" : def_name; // 判断defname是否为空
+            // 判断defname是否为空
+            const char* _def_name = def_name.empty() ? "unknow" : def_name.c_str(); 
             // 格式化打印到文件中
             if (_log_time == LogTime::Disable)
-                fprintf(out, "%s | %s | %s\n", log_level[level], def_name, _log_info.c_str());
+                fprintf(out, "%s | %s | %s\n", 
+                        _log_level[level], 
+                        _def_name, 
+                        _log_info.c_str());
             else
                 fprintf(out, "%s | %s | %s | %s\n",
                         _getLogTime().c_str(),
-                        log_level[level],
-                        def_name,
+                        _log_level[level],
+                        _def_name,
                         _log_info.c_str());
         }
         // 获取日志时间参数
@@ -156,6 +167,10 @@ struct LogTime{
             return time_log;
         }
     };
+    // 类外初始化全局成员
+    const char* Logger::_log_level[] = {"DEBUG", "INFO", "WARINING", "ERROR", "FATAL"};
+    // 实例化一个全局对象（用单例的话，调用会非常麻烦，所以暂时不做）
+    // 如果问道了，这种log类的对象资源消耗较低，可以使用`饿汉`单例在main之前实例化单例   
     Logger _log(LogType::Info,2048,LogTime::String);
 }
 

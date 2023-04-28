@@ -54,7 +54,9 @@ void LogTest()
 void LogErrTest()
 {
 	Json::Value stu;
-	std::string str = "{\"学习\":[\"语文\",\"EN\"]";//不合法的json字符串
+	std::string str;
+	//str = "{\"学习\":[\"语文\",\"EN\"]";//不合法的json字符串
+	vod::FileUtil("./test.json").GetContent(&str);//一个断尾的json文件
 	vod::JsonUtil::UnSerialize(str,&stu);//成功报错
 }
 

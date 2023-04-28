@@ -134,6 +134,7 @@ namespace vod
             if (ret != 0)
             {
                 _log.error("JsonUtil.Ser","Serialize failed!");
+                _log.error("JsonUtil.Ser body ",body->c_str());//打印出错误的字符串
                 return false;
             }
             *body = ss.str();
@@ -150,6 +151,7 @@ namespace vod
             if (ret == false)
             {
                 _log.error("JsonUtil.UnSer","UnSerialize failed!");
+                _log.error("JsonUtil.UnSer body",body.c_str());
                 return false;
             }
             return true;
