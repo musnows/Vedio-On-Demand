@@ -168,7 +168,7 @@ namespace vod
             }
             // 保存结果集到本地
             MYSQL_RES *res = mysql_store_result(_mysql);
-            if (res == NULL) {
+            if (res == nullptr) {
                 _mutex.unlock();
                 _log.error("Video SelectAll","mysql store result failed");
                 return false;
@@ -210,7 +210,7 @@ namespace vod
             }
             // 保存结果集到本地
             MYSQL_RES *res = mysql_store_result(_mysql);
-            if (res == NULL) {
+            if (res == nullptr) {
                 _mutex.unlock();
                 _log.error("Video SelectOne","mysql store result failed");
                 return false;
@@ -258,7 +258,7 @@ namespace vod
             }
             // 保存结果集到本地
             MYSQL_RES *res = mysql_store_result(_mysql);
-            if (res == NULL) {
+            if (res == nullptr) {
                 _mutex.unlock();
                 _log.error("Video SelectLike","mysql store result failed");
                 return false;
