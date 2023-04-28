@@ -8,5 +8,10 @@
         "table": {
             "video":"tb_video"
         }
+    },
+    "web":{
+        "root":"./www",
+        "video_root":"/video/",
+        "image_root":"/image/"
     }
 }

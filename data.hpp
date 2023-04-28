@@ -6,11 +6,16 @@
 #include <mysql/mysql.h>
 namespace vod
 {
-#define MYSQL_CONF_FILEPATH "./config.json"//日志文件路径
+#define CONF_FILEPATH "./config.json"//日志文件路径
 #define VEDIO_INFO_MAX_LEN 4096 //视频简介不能过长
     // 调用初始化操作连接数据库
-    static MYSQL *MysqlInit(const std::string& conf_path = "./config.json")
+    static MYSQL *MysqlInit(const std::string& conf_path)
     {
+        // 配置文件不能为空
+        if (conf_path.size()==0){
+            _log.fatal("mysql init","conf_path empty");
+            return nullptr;
+        }
         MYSQL *mysql = mysql_init(nullptr);
         if (mysql == nullptr)
         {
@@ -70,11 +75,35 @@ namespace vod
         MYSQL *_mysql;     // 一个对象就是一个客户端，管理一张表
         std::mutex _mutex; // 使用C++的线程，而不直接使用linux的pthread
         std::string _table_name;// 视频表名称
+
+        //检查视频id是否符合规范
+        bool check_video_id(const std::string& def_name,const std::string& video_id)
+        {
+            //数据库中定义的是8位id,不为8都是有问题的
+            if(video_id.size()!=8){
+                _log.warning(def_name,"id size err | sz:%d",video_id.size());
+                return false;
+            }
+            return true;
+        }
+        //检查视频简介和名字的长度
+        bool check_video_info(const std::string& def_name,const Json::Value& video)
+        {
+            if(video["name"].asString().size()==0){//1.视频名称不能为空
+                _log.warning("Video Update","name size == 0");
+                return false;
+            }
+            else if(video["info"].asString().size()>VEDIO_INFO_MAX_LEN){//2.简介不能过长（也应该在前端进行限制）
+                _log.warning("Video Update","info size out of max len!");
+                return false;
+            }
+            return true;
+        }
     public:
         // 完成mysql句柄初始化
         VideoTb()
         {
-            _mysql = MysqlInit(MYSQL_CONF_FILEPATH);
+            _mysql = MysqlInit(CONF_FILEPATH);
             //初始化失败直接abort
             if(_mysql ==nullptr){
                 _log.fatal("VideoTb init","mysql init failed | abort!");
@@ -82,7 +111,7 @@ namespace vod
             }
             // 读取表名
             Json::Value conf;
-            if(!FileUtil(MYSQL_CONF_FILEPATH).GetContent(&_table_name)){
+            if(!FileUtil(CONF_FILEPATH).GetContent(&_table_name)){
                 _log.fatal("VideoTb init","table_name read err | abort!");
                 abort();
             }
@@ -97,14 +126,7 @@ namespace vod
         // 新增-传入视频信息
         bool Insert(const Json::Value &video)
         {
-            if(video["name"].asString().size()==0){//1.视频名称不能为空
-                _log.warning("Video Insert","name size == 0");
-                return false;
-            }
-            else if(video["info"].asString().size()>VEDIO_INFO_MAX_LEN){//2.简介不能过长（也应该在前端进行限制）
-                _log.warning("Video Insert","info size out of max len!");
-                return false;
-            }
+            if(!check_video_info("Video Insert",video))return false;
             //插入的sql语句
             #define INSERT_VIDEO "insert into %s (name,info,video,cover) values ('%s','%s','%s','%s');"
             std::string sql;
@@ -119,14 +141,8 @@ namespace vod
         // 修改-传入视频id和新的信息(暂时不支持修改视频封面和路径)
         bool Update(const std::string& video_id, const Json::Value &video)
         {   
-            if(video["name"].asString().size()==0){//1.视频名称不能为空
-                _log.warning("Video Update","name size == 0");
-                return false;
-            }
-            else if(video["info"].asString().size()>VEDIO_INFO_MAX_LEN){//2.简介不能过长（也应该在前端进行限制）
-                _log.warning("Video Update","info size out of max len!");
-                return false;
-            }
+            if(!check_video_id("Video Update",video_id))return false;
+            if(!check_video_info("Video Update",video))return false;
             #define UPDATE_VIDEO_INFO "update %s set name='%s',info='%s' where id='%s';"
             std::string sql;
             sql.resize(2048+video["info"].asString().size());//扩容，避免简介超过预定义长度
@@ -139,10 +155,7 @@ namespace vod
         // 删除-传入视频id
         bool Delete(const std::string& video_id)
         {
-            if(video_id.size()==0){
-                _log.warning("Video Delete","id size == 0");
-                return false;
-            }
+            if(!check_video_id("Video Delete",video_id))return false;
             #define DELETE_VIDEO "delete from %s where id='%s';"
             std::string sql;
             sql.resize(1024);//扩容
@@ -192,11 +205,8 @@ namespace vod
         }
         // 查询单个-输入视频id，输出信息
         bool SelectOne(const std::string& video_id, Json::Value *video)
-        {
-            if(video_id.size()==0){
-                _log.warning("Video SelectOne","id size == 0");
-                return false;
-            }
+        {   
+            if(!check_video_id("Video SelectOne",video_id))return false;
             #define SELECT_ONE_VIDEO "select * from %s where id='%s';"
             std::string sql;
             sql.resize(512);

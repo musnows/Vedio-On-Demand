@@ -72,19 +72,21 @@ void MysqlTest()
 	// // video["cover"] = "/img/yangwangu9.jpg";
 	// // testable.Insert(video);
 	// //testable.Update("90182b88",video);
-	// testable.Delete("0124a425");
+	testable.Delete("0124a42523");
 
-	testable.SelectLike("仰望111",&video);
-	for(auto&v:video)
-	{
-		printf("%s | %s | %s | %s | %s\n",v["id"].asCString(),
-										v["name"].asCString(),
-										v["info"].asCString(),
-										v["video"].asCString(),
-										v["cover"].asCString());
-	}
+	// 关键词搜索
+	// testable.SelectLike("仰",&video);
+	// for(auto&v:video)
+	// {
+	// 	printf("%s | %s | %s | %s | %s\n",v["id"].asCString(),
+	// 									v["name"].asCString(),
+	// 									v["info"].asCString(),
+	// 									v["video"].asCString(),
+	// 									v["cover"].asCString());
+	// }
 
-	// if(testable.SelectOne("90182b8833",&video))
+	// id查找
+	// if(testable.SelectOne("90182b88",&video))
 	// 	printf("%s | %s | %s | %s | %s\n",video["id"].asCString(),
 	// 									video["name"].asCString(),
 	// 									video["info"].asCString(),
