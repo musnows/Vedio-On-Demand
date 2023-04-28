@@ -1,0 +1,10 @@
+{
+    "mysql": {
+        "host": "127.0.0.1",
+        "port": 0,
+        "user": "root",
+        "passwd": "",
+        "database": "vod_system",
+        "video_table": "tb_vedio"
+    }
+}

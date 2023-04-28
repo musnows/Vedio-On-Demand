@@ -1,4 +1,5 @@
 #include "../utils.hpp"
+#include "../data.hpp"
 #include <ctime>
 
 // 文件类测试
@@ -60,11 +61,18 @@ void LogErrTest()
 	vod::JsonUtil::UnSerialize(str,&stu);//成功报错
 }
 
+void MysqlTest()
+{
+	vod::VedioTb test;
+}
+
 int main()
 {
     //FileTest();
     //JsonTest();
     //LogTest();
-	LogErrTest();
-    return 0;
+	//LogErrTest();
+    MysqlTest();
+	
+	return 0;
 }
