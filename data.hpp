@@ -7,7 +7,7 @@
 namespace vod
 {
     // 调用初始化操作连接数据库
-    static MYSQL *MysqlInit()
+    static MYSQL *MysqlInit(const std::string& conf_path = "./config.json")
     {
         MYSQL *mysql = mysql_init(nullptr);
         if (mysql == nullptr)
@@ -18,7 +18,11 @@ namespace vod
         //读取配置文件
         std::string tmp_str;
         Json::Value conf;
-        FileUtil("./config.json").GetContent(&tmp_str);
+        if(!FileUtil(conf_path).GetContent(&tmp_str)){
+            //保证读取配置文件不要出错
+            _log.fatal("mysql init","get mysql config err");
+            return nullptr;
+        }
         JsonUtil::UnSerialize(tmp_str, &conf);
         //通过配置文件读取mysql的配置项
         if (mysql_real_connect(mysql, conf["mysql"]["host"].asString().c_str(), 
@@ -70,7 +74,7 @@ namespace vod
             _mysql = MysqlInit();
             //初始化失败直接abort
             if(_mysql ==nullptr){
-                _log.fatal("VedioTb init","mysql init failed | abort!\n");
+                _log.fatal("VedioTb init","mysql init failed | abort!");
                 abort();
             }
         }
