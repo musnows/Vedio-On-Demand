@@ -150,7 +150,7 @@ namespace vod
             return MysqlQuery(_mysql,sql);//执行语句
         }
         // 查询所有-输出所有视频信息（视频列表）
-        bool SelectAll(Json::Value *videos)
+        bool SelectAll(Json::Value *video_s)
         {
             #define SELET_ALL "select * from %s;"
             std::string sql;
@@ -183,16 +183,103 @@ namespace vod
                 video["info"] = row[2];
                 video["video"] = row[3];
                 video["cover"] = row[4];
-                videos->append(video);//json list
+                //json list
+                video_s->append(video);
             }
             mysql_free_result(res);//释放结果集
             _log.info("Video SelectAll","select all finished");
             return true;
         }
         // 查询单个-输入视频id，输出信息
-        bool SelectOne(int video_id, Json::Value *video);
+        bool SelectOne(const std::string& video_id, Json::Value *video)
+        {
+            if(video_id.size()==0){
+                _log.warning("Video SelectOne","id size == 0");
+                return false;
+            }
+            #define SELECT_ONE_VIDEO "select * from %s where id='%s';"
+            std::string sql;
+            sql.resize(512);
+            sprintf((char*)sql.c_str(),SELECT_ONE_VIDEO,_table_name.c_str(),video_id.c_str());
+            _mutex.lock();
+            // 语句执行失败了
+            if (!MysqlQuery(_mysql, sql)) {
+                _mutex.unlock();
+                _log.error("Video SelectOne","query failed");
+                return false;
+            }
+            // 保存结果集到本地
+            MYSQL_RES *res = mysql_store_result(_mysql);
+            if (res == NULL) {
+                _mutex.unlock();
+                _log.error("Video SelectOne","mysql store result failed");
+                return false;
+            }
+            _mutex.unlock();
+            int num_rows = mysql_num_rows(res);//获取结果集的行数
+            if(num_rows==0){//一行都没有，空空如也
+                _log.warning("Video SelectOne","no target id '%s' is found",video_id.c_str());
+                return false;
+            }
+            else if(num_rows>1)//id不唯一，大bug
+            {
+                _log.fatal("Video SelectOne","id '%s' more than once! num:%d",video_id.c_str(),num_rows);
+                return false;
+            }
+            MYSQL_ROW row = mysql_fetch_row(res);
+            // 这里是调用参数里面的对象的[]重载，所以需要解引用
+            (*video)["id"] = video_id;
+            (*video)["name"] = row[1];
+            (*video)["info"] = row[2];
+            (*video)["video"] = row[3];
+            (*video)["cover"] = row[4];
+            mysql_free_result(res);
+            _log.info("Video SelectOne","id '%s' found",video_id.c_str());
+            return true;
+        }
         // 模糊匹配-输入名称关键字，输出视频信息
-        bool SelectLike(const std::string &key, Json::Value *videos);
+        bool SelectLike(const std::string &key, Json::Value *video_s)
+        {
+            //当时创建数据库的时候，name只能是50个字节
+            if(key.size()==0 || key.size()>50){
+                _log.warning("Video SelectLike","key size out of range | size:%d",key.size());
+                return false;
+            }
+            #define SELECT_LIKE "select * from %s where name like '%%%s%%';"//模糊匹配
+            std::string sql;
+            sql.resize(512+key.size());
+            sprintf((char*)sql.c_str(),SELECT_LIKE,_table_name.c_str(),key.c_str());
+            _mutex.lock();
+            // 语句执行失败了
+            if (!MysqlQuery(_mysql, sql)) {
+                _mutex.unlock();
+                _log.error("Video SelectLike","query failed");
+                return false;
+            }
+            // 保存结果集到本地
+            MYSQL_RES *res = mysql_store_result(_mysql);
+            if (res == NULL) {
+                _mutex.unlock();
+                _log.error("Video SelectLike","mysql store result failed");
+                return false;
+            }
+            _mutex.unlock();
+            int num_rows = mysql_num_rows(res);//获取结果集的行数
+            for (int i = 0; i < num_rows; i++) {
+                MYSQL_ROW row = mysql_fetch_row(res);//获取每一行的列数
+                Json::Value video;
+                video["id"] = row[0];
+                video["name"] = row[1];
+                video["info"] = row[2];
+                video["video"] = row[3];
+                video["cover"] = row[4];
+                //json list
+                video_s->append(video);
+            }
+            mysql_free_result(res);//释放结果集
+            _log.info("Video SelectLike","select like '%s' finished",key.c_str());//key不会过长
+            return true;
+        }
     };
 }
 #endif
