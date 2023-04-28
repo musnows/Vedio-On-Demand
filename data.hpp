@@ -153,6 +153,41 @@ namespace vod
         bool SelectAll(Json::Value *videos)
         {
             #define SELET_ALL "select * from %s;"
+            std::string sql;
+            sql.resize(512);
+            sprintf((char*)sql.c_str(),SELET_ALL,_table_name.c_str());
+            // 这里加锁是为了保证结果集能被正常报错（并不是防止修改原子性问题,mysql本身就已经维护了原子性）
+            // 下方执行语句后，如果不保存结果集 而又执行一次搜索语句，之前搜索的结果就会丢失
+            // 加锁是为了保证同一时间只有一个执行流在进行查询操作，避免结果集丢失
+            _mutex.lock();
+            // 语句执行失败了
+            if (!MysqlQuery(_mysql, sql)) {
+                _mutex.unlock();
+                _log.error("Video SelectAll","query failed");
+                return false;
+            }
+            // 保存结果集到本地
+            MYSQL_RES *res = mysql_store_result(_mysql);
+            if (res == NULL) {
+                _mutex.unlock();
+                _log.error("Video SelectAll","mysql store result failed");
+                return false;
+            }
+            _mutex.unlock();
+            int num_rows = mysql_num_rows(res);//获取结果集的行数
+            for (int i = 0; i < num_rows; i++) {
+                MYSQL_ROW row = mysql_fetch_row(res);//获取每一行的列数
+                Json::Value video;
+                video["id"] = row[0];
+                video["name"] = row[1];
+                video["info"] = row[2];
+                video["video"] = row[3];
+                video["cover"] = row[4];
+                videos->append(video);//json list
+            }
+            mysql_free_result(res);//释放结果集
+            _log.info("Video SelectAll","select all finished");
+            return true;
         }
         // 查询单个-输入视频id，输出信息
         bool SelectOne(int video_id, Json::Value *video);

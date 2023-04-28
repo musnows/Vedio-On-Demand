@@ -1,6 +1,7 @@
 #include "../utils.hpp"
 #include "../data.hpp"
 #include <ctime>
+using namespace std;
 
 // 文件类测试
 void FileTest()
@@ -65,13 +66,23 @@ void MysqlTest()
 {
 	vod::VideoTb test;
 	Json::Value video;
-	video["name"] = "比亚迪仰望u9";
-	video["info"] = "比亚迪仰望u9的宣传视频和cg渲染图，超帅！";
-	// video["video"] = "/video/yangwangu9.mp4";
-	// video["cover"] = "/img/yangwangu9.jpg";
-	// test.Insert(video);
-	//test.Update("90182b88",video);
-	test.Delete("0124a425");
+	// video["name"] = "比亚迪仰望u9";
+	// video["info"] = "比亚迪仰望u9的宣传视频和cg渲染图，超帅！";
+	// // video["video"] = "/video/yangwangu9.mp4";
+	// // video["cover"] = "/img/yangwangu9.jpg";
+	// // test.Insert(video);
+	// //test.Update("90182b88",video);
+	// test.Delete("0124a425");
+
+	test.SelectAll(&video);
+	for(auto&v:video)
+	{
+		printf("%s | %s | %s | %s | %s\n",v["id"].asCString(),
+										v["name"].asCString(),
+										v["info"].asCString(),
+										v["video"].asCString(),
+										v["cover"].asCString());
+	}
 }
 
 int main()
