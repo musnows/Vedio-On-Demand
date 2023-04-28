@@ -63,7 +63,15 @@ void LogErrTest()
 
 void MysqlTest()
 {
-	vod::VedioTb test;
+	vod::VideoTb test;
+	Json::Value video;
+	video["name"] = "比亚迪仰望u9";
+	video["info"] = "比亚迪仰望u9的宣传视频和cg渲染图，超帅！";
+	// video["video"] = "/video/yangwangu9.mp4";
+	// video["cover"] = "/img/yangwangu9.jpg";
+	// test.Insert(video);
+	//test.Update("90182b88",video);
+	test.Delete("0124a425");
 }
 
 int main()

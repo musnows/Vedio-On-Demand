@@ -14,10 +14,6 @@
 
 namespace vod
 {
-    // 展开常用的
-    using std::cerr;
-    using std::cerr;
-    using std::endl;
     // 用于处理本地文件的类
     class FileUtil
     {

@@ -5,6 +5,8 @@
         "user": "root",
         "passwd": "",
         "database": "vod_system",
-        "video_table": "tb_vedio"
+        "table": {
+            "video":"tb_video"
+        }
     }
 }
