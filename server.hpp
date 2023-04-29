@@ -44,6 +44,21 @@ namespace vod
             }
             return true;
         }
+        // 检查视频id是否存在，对于一些接口来说很有用
+        static bool IsVideoExists(const std::string &def_name,const std::string &video_id, httplib::Response &rsp)
+        {
+            // 要先查询，判断是否有这个id（mysql执行语句的时候，id不存在并不会报错）
+            Json::Value video;
+            if (!VideoTable.SelectOne(video_id, &video))
+            {
+                rsp.status = 404;
+                rsp.body = R"({"code":404, "message":"视频id不存在"})";
+                rsp.set_header("Content-Type", "application/json");
+                _log.error(def_name, "video id not exists! id: [%s]",video_id.c_str());
+                return false;
+            }
+            return true;
+        }
 
     private:
         // 将前端发过来的请求指定对应的业务处理接口，转给后端的mysql进行处理
@@ -55,7 +70,8 @@ namespace vod
             _log.info("server insert", "post recv from %s", req.remote_addr.c_str());
             static const std::vector<const char *> ins_key = {"name", "info", "video", "cover"};
             // 使用循环来判断文件中是否含有这些字段，没有就返回400
-            if(!ReqKeyCheck("server insert",ins_key,req,rsp))return;
+            if (!ReqKeyCheck("server insert", ins_key, req, rsp))
+                return;
             // 从请求的req中取出对应的字段，
             httplib::MultipartFormData name = req.get_file_value("name");   // 视频名称
             httplib::MultipartFormData info = req.get_file_value("info");   // 视频简介
@@ -125,28 +141,56 @@ namespace vod
             _log.info("server update", "put recv from %s", req.remote_addr.c_str());
             static const std::vector<const char *> upd_key = {"name", "info"};
             // 使用循环来判断文件中是否含有这些字段，没有就返回400
-            if(!ReqKeyCheck("server update",upd_key,req,rsp))return;
-            std::string video_id = req.matches[1];//从匹配的正则中获取到视频id
-            _log.info("server update","video id recv id:%s",video_id.c_str());
+            if (!ReqKeyCheck("server update", upd_key, req, rsp))
+                return;
+            std::string video_id = req.matches[1];                                   // 从匹配的正则中获取到视频id
+            _log.info("server update", "video id recv! id: [%s]", video_id.c_str()); // 将id括起来可以看出来是否有空格
+            // 检查视频id是否存在
+            if(!IsVideoExists("server update",video_id,rsp))return;
             // 取出对应内容
-            httplib::MultipartFormData name = req.get_file_value("name");   // 视频名称
-            httplib::MultipartFormData info = req.get_file_value("info");   // 视频简介
+            httplib::MultipartFormData name = req.get_file_value("name"); // 视频名称
+            httplib::MultipartFormData info = req.get_file_value("info"); // 视频简介
             // 获取视频标题和简介的内容
             std::string video_name = name.content;
             std::string video_info = info.content;
             Json::Value video;
             video["name"] = video_name;
             video["info"] = video_info;
-            if(!VideoTable.Update(video_id,video))
+            if (!VideoTable.Update(video_id, video))
                 return MysqlErrHandler("server update", rsp);
             // 更新成功
             rsp.status = 200;
             rsp.body = R"({"code":0, "message":"更新视频标题/简介成功"})";
             rsp.set_header("Content-Type", "application/json");
-            _log.info("server insert", "database insert finished! id:%s", video_id.c_str());
+            _log.info("server insert", "database insert finished! id: [%s]", video_id.c_str());
             return;
         }
-        // static void Delete(const httplib::Request &req, httplib::Response &rsp);
+        // 删除视频，同样也是通过视频id
+        static void Delete(const httplib::Request &req, httplib::Response &rsp)
+        {
+            _log.info("server delete", "delete recv from %s", req.remote_addr.c_str());
+            std::string video_id = req.matches[1];                                   // 从匹配的正则中获取到视频id
+            _log.info("server delete", "video id recv! id: [%s]", video_id.c_str()); // 将id括起来可以看出来是否有空格
+            if(!IsVideoExists("server deleet",video_id,rsp))return ;
+            // 视频id存在，删除
+            // 1.删除本地文件
+            Json::Value video;
+            if(!VideoTable.SelectOne(video_id,&video))
+                return MysqlErrHandler("server delete",rsp);
+            // 本地文件删除失败也不要紧，主要是得删除掉数据库中的数据
+            FileUtil(Conf["root"].asString()+video["cover"].asString()).DeleteFile();
+            FileUtil(Conf["root"].asString()+video["video"].asString()).DeleteFile();
+            // 2.删除数据库信息
+            if(!VideoTable.Delete(video_id))
+                return MysqlErrHandler("server delete",rsp);
+            // 删除成功
+            rsp.status = 200;
+            rsp.body = R"({"code":0, "message":"删除成功"})";
+            rsp.set_header("Content-Type", "application/json");
+            _log.info("server delete", "database delete finished! id: [%s]", video_id.c_str());
+            return;
+        }
+
         // // 通过视频id获取视频
         // static void GetOne(const httplib::Request &req, httplib::Response &rsp);
         // // 通过视频路径获取所有视频，或者用query参数来进行搜搜
@@ -175,7 +219,7 @@ namespace vod
             FileUtil(Conf["root"].asString()).CreateDirectory(); // 创建根目录文件夹
             std::string root = Conf["root"].asString();
             std::string video_real_path = root + Conf["video_root"].asString(); // ./www/video/
-            FileUtil(video_real_path).CreateDirectory();                         // 创建文件夹
+            FileUtil(video_real_path).CreateDirectory();                        // 创建文件夹
             std::string image_real_path = root + Conf["image_root"].asString(); // ./www/image/
             FileUtil(image_real_path).CreateDirectory();
             // 2.调用httplib的接口，映射服务器表
@@ -183,8 +227,8 @@ namespace vod
             _srv.set_mount_point("/", Conf["root"].asString());
             // 2.2 添加请求-处理函数映射关系
             _srv.Post("/video", Insert);
-            // //   正则匹配
-            // _srv.Delete("/video/*", Delete);
+            //  正则匹配
+            _srv.Delete("/video/([A-Za-z0-9]+)", Delete);
             _srv.Put("/video/([A-Za-z0-9]+)", Update);
             // _srv.Get("/video/*", GetOne);
             // _srv.Get("/video", GetAll);

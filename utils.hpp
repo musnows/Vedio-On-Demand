@@ -109,6 +109,22 @@ namespace vod
             mkdir(_path.c_str(), 0777);
             return true;
         }
+        // 删除文件
+        bool DeleteFile()
+        {
+            if(!this->Exists())
+            {
+                return false;
+            }
+            // remove函数不能用来删除文件夹
+            if(remove(_path.c_str())!=0)
+            {
+                _log.error("FileUtil.DeleteFile","remove failed! path:%s",_path.c_str());
+                return false;
+            }
+            _log.info("FileUtil.DeleteFile","remove success! path:%s",_path.c_str());
+            return true;
+        }
     };
 
     // json序列化和反序列化的方法
