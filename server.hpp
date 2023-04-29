@@ -9,8 +9,9 @@ namespace vod
 #define DEFAULT_VEDIO_INFO "这里什么都没有~" // 默认视频简介
 #define DEFAULT_VEDIO_COVER "default.png"    // 默认视频封面
     // 为了方便访问这个对象，定义全局变量
-    VideoTb video_table;
-    Json::Value _conf; // 服务器的配置文件（json）
+    // 用大写方便标识
+    VideoTb VideoTable;
+    Json::Value Conf; // 服务器的配置文件（json）
     // 服务器端
     class Server
     {
@@ -79,11 +80,11 @@ namespace vod
                 _log.warning("server insert", "empty video info, using default");
             }
             // 拼接视频路径
-            std::string root = _conf["root"].asString();
+            std::string root = Conf["root"].asString();
             // 视频名中包含时间和视频文件的名字，对于本项目而言，安秒记录的时间已经能保证视频文件路径的唯一性了
             // 如果是请求量更大的项目，可以考虑使用毫秒级时间戳，或视频文件的md5字符串作为视频的路径名
-            std::string video_path = _conf["video_root"].asString() + GetTimeStr(NAME_TIME_FORMAT) + video.filename;
-            std::string image_path = _conf["image_root"].asString() + GetTimeStr(NAME_TIME_FORMAT) + image.filename;
+            std::string video_path = Conf["video_root"].asString() + GetTimeStr(NAME_TIME_FORMAT) + video.filename;
+            std::string image_path = Conf["image_root"].asString() + GetTimeStr(NAME_TIME_FORMAT) + image.filename;
             // 将文件写入path
             if (!FileUtil(root + video_path).SetContent(video.content))
             {
@@ -108,7 +109,7 @@ namespace vod
             video_json["video"] = video_path;
             video_json["cover"] = image_path;
             // 注意json的键值不能出错，否则会抛出异常（异常处理太麻烦了）
-            if (!video_table.Insert(video_json))
+            if (!VideoTable.Insert(video_json))
                 return MysqlErrHandler("server insert", rsp);
             // 上传成功
             rsp.status = 200;
@@ -124,7 +125,26 @@ namespace vod
             _log.info("server update", "put recv from %s", req.remote_addr.c_str());
             static const std::vector<const char *> upd_key = {"name", "info"};
             // 使用循环来判断文件中是否含有这些字段，没有就返回400
-            if(!ReqKeyCheck("server insert",upd_key,req,rsp))return;
+            if(!ReqKeyCheck("server update",upd_key,req,rsp))return;
+            std::string video_id = req.matches[1];//从匹配的正则中获取到视频id
+            _log.info("server update","video id recv id:%s",video_id.c_str());
+            // 取出对应内容
+            httplib::MultipartFormData name = req.get_file_value("name");   // 视频名称
+            httplib::MultipartFormData info = req.get_file_value("info");   // 视频简介
+            // 获取视频标题和简介的内容
+            std::string video_name = name.content;
+            std::string video_info = info.content;
+            Json::Value video;
+            video["name"] = video_name;
+            video["info"] = video_info;
+            if(!VideoTable.Update(video_id,video))
+                return MysqlErrHandler("server update", rsp);
+            // 更新成功
+            rsp.status = 200;
+            rsp.body = R"({"code":0, "message":"更新视频标题/简介成功"})";
+            rsp.set_header("Content-Type", "application/json");
+            _log.info("server insert", "database insert finished! id:%s", video_id.c_str());
+            return;
         }
         // static void Delete(const httplib::Request &req, httplib::Response &rsp);
         // // 通过视频id获取视频
@@ -145,27 +165,27 @@ namespace vod
                 abort();
             }
             JsonUtil::UnSerialize(tmp_str, &conf);
-            _conf = conf["web"]; // 赋值web的json格式给服务器，作为服务器配置
+            Conf = conf["web"]; // 赋值web的json格式给服务器，作为服务器配置
             _log.info("server init", "init finished");
         }
         // 建立请求与处理函数的映射关系，设置静态资源根目录，启动服务器，
         bool Run()
         {
             // 1.创建本地的资源文件夹
-            FileUtil(_conf["root"].asString()).CreateDirectory(); // 创建根目录文件夹
-            std::string root = _conf["root"].asString();
-            std::string video_real_path = root + _conf["video_root"].asString(); // ./www/video/
+            FileUtil(Conf["root"].asString()).CreateDirectory(); // 创建根目录文件夹
+            std::string root = Conf["root"].asString();
+            std::string video_real_path = root + Conf["video_root"].asString(); // ./www/video/
             FileUtil(video_real_path).CreateDirectory();                         // 创建文件夹
-            std::string image_real_path = root + _conf["image_root"].asString(); // ./www/image/
+            std::string image_real_path = root + Conf["image_root"].asString(); // ./www/image/
             FileUtil(image_real_path).CreateDirectory();
             // 2.调用httplib的接口，映射服务器表
             // 2.1 设置静态资源根目录
-            _srv.set_mount_point("/", _conf["root"].asString());
+            _srv.set_mount_point("/", Conf["root"].asString());
             // 2.2 添加请求-处理函数映射关系
             _srv.Post("/video", Insert);
             // //   正则匹配
             // _srv.Delete("/video/*", Delete);
-            // _srv.Put("/video/*", Update);
+            _srv.Put("/video/([A-Za-z0-9]+)", Update);
             // _srv.Get("/video/*", GetOne);
             // _srv.Get("/video", GetAll);
             // 3.指定端口，启动服务器

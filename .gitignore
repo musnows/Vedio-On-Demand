@@ -1,2 +1,5 @@
 .vscode/
 .tmp
+
+# 暂时先忽略www路径
+www/
