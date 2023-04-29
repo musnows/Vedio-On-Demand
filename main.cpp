@@ -1,10 +1,11 @@
-#include "server.hpp"
+#include "server/server.hpp"
+#define PORT 50000//服务端所用端口
 
 int main()
 {
-    size_t port = 50000;
-    vod::_log.info("main","server run at %d",port);
-    vod::Server s(port);
-    s.Run();
+    // 打印日志
+    vod::_log.info("main","server run at %d",PORT);
+    vod::Server s(PORT);
+    s.Run();// 启动服务器
     return 0;
 }

@@ -1,4 +1,4 @@
-main:main.cpp utils.hpp mylog.hpp data.hpp server.hpp
+main:main.cpp ./server/
 	g++ main.cpp -o main -lmysqlclient -ljsoncpp -lpthread
 
 .PHONY:clean
