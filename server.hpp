@@ -17,14 +17,31 @@ namespace vod
     private:
         size_t _port;         // 服务器监听端口
         httplib::Server _srv; // 用于搭建http服务器
-        //出现数据库写入异常的通用处理
-        static void MysqlErrHandler(const std::string& def_name,httplib::Response &rsp)
+        // 出现数据库写入异常的通用处理
+        static void MysqlErrHandler(const std::string &def_name, httplib::Response &rsp)
         {
             rsp.status = 500;
             rsp.body = R"({"code":500, "message":"视频信息写入数据库失败"})";
             rsp.set_header("Content-Type", "application/json");
             _log.error(def_name, "database query err!");
             return;
+        }
+        // 检查是否却少键值
+        static bool ReqKeyCheck(const std::string &def_name, const std::vector<const char *> key_array, const httplib::Request &req, httplib::Response &rsp)
+        {
+            for (auto &key : key_array)
+            {
+                if (req.has_file(key) == false)
+                {
+                    rsp.status = 400; // 该状态码代表服务器不理解请求的含义
+                    // R代表原始字符串，忽略字符串内部的特殊字符。如果不用R，就需要\"转义双引号，麻烦
+                    rsp.body = R"({"code":500, "message":"上传的数据信息错误，键值缺失"})";
+                    rsp.set_header("Content-Type", "application/json");
+                    _log.warning(def_name, "missing key '%s'", key);
+                    return false;
+                }
+            }
+            return true;
         }
 
     private:
@@ -34,21 +51,10 @@ namespace vod
         // 这里写static是方便将函数映射给httplib
         static void Insert(const httplib::Request &req, httplib::Response &rsp)
         {
-            _log.info("server insert", "post recv from %s:%d", req.remote_addr.c_str(), req.remote_port);
-            static const std::vector<const char *> key_array = {"name", "info", "video", "cover"};
+            _log.info("server insert", "post recv from %s", req.remote_addr.c_str());
+            static const std::vector<const char *> ins_key = {"name", "info", "video", "cover"};
             // 使用循环来判断文件中是否含有这些字段，没有就返回400
-            for (auto &key : key_array)
-            {
-                if (req.has_file(key) == false)
-                {
-                    rsp.status = 400; // 该状态码代表服务器不理解请求的含义
-                    // R代表原始字符串，忽略字符串内部的特殊字符。如果不用R，就需要\"转义双引号，麻烦
-                    rsp.body = R"({"code":500, "message":"上传的数据信息错误，键值缺失"})";
-                    rsp.set_header("Content-Type", "application/json");
-                    _log.warning("server insert", "missing key '%s'", key);
-                    return;
-                }
-            }
+            if(!ReqKeyCheck("server insert",ins_key,req,rsp))return;
             // 从请求的req中取出对应的字段，
             httplib::MultipartFormData name = req.get_file_value("name");   // 视频名称
             httplib::MultipartFormData info = req.get_file_value("info");   // 视频简介
@@ -103,7 +109,7 @@ namespace vod
             video_json["cover"] = image_path;
             // 注意json的键值不能出错，否则会抛出异常（异常处理太麻烦了）
             if (!video_table.Insert(video_json))
-                return MysqlErrHandler("server insert",rsp);
+                return MysqlErrHandler("server insert", rsp);
             // 上传成功
             rsp.status = 200;
             rsp.body = R"({"code":0, "message":"上传视频成功"})";
@@ -112,7 +118,14 @@ namespace vod
             // rsp.set_redirect("/index.html", 303); // 将用户重定向到主页
             return;
         }
-        // static void Update(const httplib::Request &req, httplib::Response &rsp);
+        // 更新视频，暂时只支持更新视频标题和简介
+        static void Update(const httplib::Request &req, httplib::Response &rsp)
+        {
+            _log.info("server update", "put recv from %s", req.remote_addr.c_str());
+            static const std::vector<const char *> upd_key = {"name", "info"};
+            // 使用循环来判断文件中是否含有这些字段，没有就返回400
+            if(!ReqKeyCheck("server insert",upd_key,req,rsp))return;
+        }
         // static void Delete(const httplib::Request &req, httplib::Response &rsp);
         // // 通过视频id获取视频
         // static void GetOne(const httplib::Request &req, httplib::Response &rsp);
