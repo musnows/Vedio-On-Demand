@@ -45,7 +45,7 @@ namespace vod
             return true;
         }
         // 检查视频id是否存在，对于一些接口来说很有用
-        static bool IsVideoExists(const std::string &def_name,const std::string &video_id, httplib::Response &rsp)
+        static bool IsVideoExists(const std::string &def_name, const std::string &video_id, httplib::Response &rsp)
         {
             // 要先查询，判断是否有这个id（mysql执行语句的时候，id不存在并不会报错）
             Json::Value video;
@@ -54,7 +54,7 @@ namespace vod
                 rsp.status = 404;
                 rsp.body = R"({"code":404, "message":"视频id不存在"})";
                 rsp.set_header("Content-Type", "application/json");
-                _log.error(def_name, "video id not exists! id: [%s]",video_id.c_str());
+                _log.error(def_name, "video id not exists! id: [%s]", video_id.c_str());
                 return false;
             }
             return true;
@@ -67,10 +67,10 @@ namespace vod
         // 这里写static是方便将函数映射给httplib
         static void Insert(const httplib::Request &req, httplib::Response &rsp)
         {
-            _log.info("server insert", "post recv from %s", req.remote_addr.c_str());
+            _log.info("Server.Insert", "post recv from %s", req.remote_addr.c_str());
             static const std::vector<const char *> ins_key = {"name", "info", "video", "cover"};
             // 使用循环来判断文件中是否含有这些字段，没有就返回400
-            if (!ReqKeyCheck("server insert", ins_key, req, rsp))
+            if (!ReqKeyCheck("Server.Insert", ins_key, req, rsp))
                 return;
             // 从请求的req中取出对应的字段，
             httplib::MultipartFormData name = req.get_file_value("name");   // 视频名称
@@ -86,14 +86,14 @@ namespace vod
                 rsp.status = 400; // 客户端出错
                 rsp.body = R"({"code":400, "message":"视频名字/视频文件不能为空"})";
                 rsp.set_header("Content-Type", "application/json");
-                _log.warning("server insert", "empty video name or video content");
+                _log.warning("Server.Insert", "empty video name or video content");
                 return;
             }
             // 视频简介为空/视频封面为空替换成默认简介
             if (video_info.size() == 0)
             {
                 video_info = DEFAULT_VEDIO_INFO;
-                _log.warning("server insert", "empty video info, using default");
+                _log.warning("Server.Insert", "empty video info, using default");
             }
             // 拼接视频路径
             std::string root = Conf["root"].asString();
@@ -107,7 +107,7 @@ namespace vod
                 rsp.status = 500; // 服务端出错
                 rsp.body = R"({"code":500, "message":"视频文件存储失败"})";
                 rsp.set_header("Content-Type", "application/json");
-                _log.error("server insert", "write video file err! path:%s", video_path.c_str());
+                _log.error("Server.Insert", "write video file err! path:%s", video_path.c_str());
                 return;
             }
             if (!FileUtil(root + image_path).SetContent(image.content))
@@ -115,10 +115,10 @@ namespace vod
                 rsp.status = 500; // 服务端出错
                 rsp.body = R"({"code":500, "message":"视频封面图片文件存储失败"})";
                 rsp.set_header("Content-Type", "application/json");
-                _log.error("server insert", "write cover image file err! path:%s", video_path.c_str());
+                _log.error("Server.Insert", "write cover image file err! path:%s", video_path.c_str());
                 return;
             }
-            _log.info("server insert", "write file video:'%s' cover:'%s'", video_path.c_str(), image_path.c_str());
+            _log.info("Server.Insert", "write file video:'%s' cover:'%s'", video_path.c_str(), image_path.c_str());
             Json::Value video_json;
             video_json["name"] = video_name;
             video_json["info"] = video_info;
@@ -126,27 +126,28 @@ namespace vod
             video_json["cover"] = image_path;
             // 注意json的键值不能出错，否则会抛出异常（异常处理太麻烦了）
             if (!VideoTable.Insert(video_json))
-                return MysqlErrHandler("server insert", rsp);
+                return MysqlErrHandler("Server.Insert", rsp);
             // 上传成功
             rsp.status = 200;
             rsp.body = R"({"code":0, "message":"上传视频成功"})";
             rsp.set_header("Content-Type", "application/json");
-            _log.info("server insert", "database insert finished! path:%s", video_path.c_str());
+            _log.info("Server.Insert", "database insert finished! path:%s", video_path.c_str());
             // rsp.set_redirect("/index.html", 303); // 将用户重定向到主页
             return;
         }
         // 更新视频，暂时只支持更新视频标题和简介
         static void Update(const httplib::Request &req, httplib::Response &rsp)
         {
-            _log.info("server update", "put recv from %s", req.remote_addr.c_str());
+            _log.info("Server.Update", "put recv from %s", req.remote_addr.c_str());
             static const std::vector<const char *> upd_key = {"name", "info"};
             // 使用循环来判断文件中是否含有这些字段，没有就返回400
-            if (!ReqKeyCheck("server update", upd_key, req, rsp))
+            if (!ReqKeyCheck("Server.Update", upd_key, req, rsp))
                 return;
             std::string video_id = req.matches[1];                                   // 从匹配的正则中获取到视频id
-            _log.info("server update", "video id recv! id: [%s]", video_id.c_str()); // 将id括起来可以看出来是否有空格
+            _log.info("Server.Update", "video id recv! id: [%s]", video_id.c_str()); // 将id括起来可以看出来是否有空格
             // 检查视频id是否存在
-            if(!IsVideoExists("server update",video_id,rsp))return;
+            if (!IsVideoExists("Server.Update", video_id, rsp))
+                return;
             // 取出对应内容
             httplib::MultipartFormData name = req.get_file_value("name"); // 视频名称
             httplib::MultipartFormData info = req.get_file_value("info"); // 视频简介
@@ -157,44 +158,89 @@ namespace vod
             video["name"] = video_name;
             video["info"] = video_info;
             if (!VideoTable.Update(video_id, video))
-                return MysqlErrHandler("server update", rsp);
+                return MysqlErrHandler("Server.Update", rsp);
             // 更新成功
             rsp.status = 200;
             rsp.body = R"({"code":0, "message":"更新视频标题/简介成功"})";
             rsp.set_header("Content-Type", "application/json");
-            _log.info("server insert", "database insert finished! id: [%s]", video_id.c_str());
+            _log.info("Server.Update", "database insert finished! id: [%s]", video_id.c_str());
             return;
         }
         // 删除视频，同样也是通过视频id
         static void Delete(const httplib::Request &req, httplib::Response &rsp)
         {
-            _log.info("server delete", "delete recv from %s", req.remote_addr.c_str());
+            _log.info("Server.Delete", "delete recv from %s", req.remote_addr.c_str());
             std::string video_id = req.matches[1];                                   // 从匹配的正则中获取到视频id
-            _log.info("server delete", "video id recv! id: [%s]", video_id.c_str()); // 将id括起来可以看出来是否有空格
-            if(!IsVideoExists("server deleet",video_id,rsp))return ;
+            _log.info("Server.Delete", "video id recv! id: [%s]", video_id.c_str()); // 将id括起来可以看出来是否有空格
+            if (!IsVideoExists("Server.Delete", video_id, rsp))
+                return;
             // 视频id存在，删除
             // 1.删除本地文件
             Json::Value video;
-            if(!VideoTable.SelectOne(video_id,&video))
-                return MysqlErrHandler("server delete",rsp);
+            if (!VideoTable.SelectOne(video_id, &video))
+                return MysqlErrHandler("Server.Delete", rsp);
             // 本地文件删除失败也不要紧，主要是得删除掉数据库中的数据
-            FileUtil(Conf["root"].asString()+video["cover"].asString()).DeleteFile();
-            FileUtil(Conf["root"].asString()+video["video"].asString()).DeleteFile();
+            FileUtil(Conf["root"].asString() + video["cover"].asString()).DeleteFile();
+            FileUtil(Conf["root"].asString() + video["video"].asString()).DeleteFile();
             // 2.删除数据库信息
-            if(!VideoTable.Delete(video_id))
-                return MysqlErrHandler("server delete",rsp);
+            if (!VideoTable.Delete(video_id))
+                return MysqlErrHandler("Server.Delete", rsp);
             // 删除成功
             rsp.status = 200;
             rsp.body = R"({"code":0, "message":"删除成功"})";
             rsp.set_header("Content-Type", "application/json");
-            _log.info("server delete", "database delete finished! id: [%s]", video_id.c_str());
+            _log.info("Server.Delete", "database delete finished! id: [%s]", video_id.c_str());
             return;
         }
 
-        // // 通过视频id获取视频
-        // static void GetOne(const httplib::Request &req, httplib::Response &rsp);
-        // // 通过视频路径获取所有视频，或者用query参数来进行搜搜
-        // static void GetAll(const httplib::Request &req, httplib::Response &rsp);
+        // 通过视频id获取视频
+        static void GetOne(const httplib::Request &req, httplib::Response &rsp)
+        {
+            _log.info("Server.GetOne", "get recv from %s", req.remote_addr.c_str());
+            std::string video_id = req.matches[1];                                   // 从匹配的正则中获取到视频id
+            _log.info("Server.GetOne", "video id recv! id: [%s]", video_id.c_str()); // 将id括起来可以看出来是否有空格
+            if (!IsVideoExists("Server.GetOne", video_id, rsp))
+                return;
+            Json::Value video;
+            if (!VideoTable.SelectOne(video_id, &video))
+                return MysqlErrHandler("Server.GetOne", rsp);
+
+            JsonUtil::Serialize(video, &rsp.body);
+            rsp.set_header("Content-Type", "application/json");
+            _log.info("Server.GetOne", "get success! id: [%s]", video_id.c_str());
+        }
+        // 通过视频路径获取所有视频，或者用query参数来进行搜搜
+        static void GetAll(const httplib::Request &req, httplib::Response &rsp)
+        {
+            // /video 或 /video?s="关键字"
+            bool search_flag = false; // 默认所有查询
+            std::string search_key;
+            if (req.has_param("s")) // 判断是否有s的query参数
+            {
+                search_flag = true; // 模糊匹配查询
+                search_key = req.get_param_value("s");
+            }
+            Json::Value videos;
+            if (!search_flag)
+            {
+                if (!VideoTable.SelectAll(&videos))
+                {
+                    return MysqlErrHandler("Server.GetAll",rsp);
+                }
+                _log.info("Server.GetAll","Select All success");
+            }
+            else
+            {
+                if (!VideoTable.SelectLike(search_key, &videos))
+                {
+                    return MysqlErrHandler("Server.GetAll.Like",rsp);
+                }
+                _log.info("Server.GetAll.Like","Select Like success! key: [%s]",search_key.c_str());
+            }
+            JsonUtil::Serialize(videos, &rsp.body);
+            rsp.set_header("Content-Type", "application/json");
+            return;
+        }
 
     public:
         Server(size_t port = DEFAULT_SERVER_PORT)
@@ -230,10 +276,10 @@ namespace vod
             //  正则匹配
             _srv.Delete("/video/([A-Za-z0-9]+)", Delete);
             _srv.Put("/video/([A-Za-z0-9]+)", Update);
-            // _srv.Get("/video/*", GetOne);
-            // _srv.Get("/video", GetAll);
+            _srv.Get("/video/([A-Za-z0-9]+)", GetOne);
+            _srv.Get("/video", GetAll);
             // 3.指定端口，启动服务器
-            //  这里必须用0.0.0.0，否则其他设备无法访问
+            //   这里必须用0.0.0.0，否则其他设备无法访问
             _srv.listen("0.0.0.0", _port);
             return true;
         }
