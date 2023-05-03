@@ -38,7 +38,7 @@ namespace vod
                     // R代表原始字符串，忽略字符串内部的特殊字符。如果不用R，就需要\"转义双引号，麻烦
                     rsp.body = R"({"code":500, "message":"上传的数据信息错误，键值缺失"})";
                     rsp.set_header("Content-Type", "application/json");
-                    _log.warning(def_name, "missing key '%s'", key);
+                    _log.warning(def_name, "missing key '%s' | return status=400", key);
                     return false;
                 }
             }
@@ -140,23 +140,26 @@ namespace vod
         {
             _log.info("Server.Update", "put recv from %s", req.remote_addr.c_str());
             static const std::vector<const char *> upd_key = {"name", "info"};
+            // 错误，这里不应该检查有没有对应键值，因为请求是通过axjx传过来的，并不是form表单传入
             // 使用循环来判断文件中是否含有这些字段，没有就返回400
-            if (!ReqKeyCheck("Server.Update", upd_key, req, rsp))
-                return;
+            // if (!ReqKeyCheck("Server.Update", upd_key, req, rsp))
+            //     return;
             std::string video_id = req.matches[1];                                   // 从匹配的正则中获取到视频id
             _log.info("Server.Update", "video id recv! id: [%s]", video_id.c_str()); // 将id括起来可以看出来是否有空格
             // 检查视频id是否存在
             if (!IsVideoExists("Server.Update", video_id, rsp))
                 return;
-            // 取出对应内容
-            httplib::MultipartFormData name = req.get_file_value("name"); // 视频名称
-            httplib::MultipartFormData info = req.get_file_value("info"); // 视频简介
+            // 直接序列化body就行了
+            // // 取出对应内容
+            // httplib::MultipartFormData name = req.get_file_value("name"); // 视频名称
+            // httplib::MultipartFormData info = req.get_file_value("info"); // 视频简介
             // 获取视频标题和简介的内容
-            std::string video_name = name.content;
-            std::string video_info = info.content;
+            // std::string video_name = name.content;
+            // std::string video_info = info.content;
             Json::Value video;
-            video["name"] = video_name;
-            video["info"] = video_info;
+            // video["name"] = video_name;
+            // video["info"] = video_info;
+            JsonUtil::UnSerialize(req.body,&video);//反序列化
             if (!VideoTable.Update(video_id, video))
                 return MysqlErrHandler("Server.Update", rsp);
             // 更新成功
