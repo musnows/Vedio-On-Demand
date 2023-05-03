@@ -128,11 +128,11 @@ namespace vod
             if (!VideoTable.Insert(video_json))
                 return MysqlErrHandler("Server.Insert", rsp);
             // 上传成功
-            rsp.status = 200;
-            rsp.body = R"({"code":0, "message":"上传视频成功"})";
-            rsp.set_header("Content-Type", "application/json");
+            // rsp.status = 200;
+            // rsp.body = R"({"code":0, "message":"上传视频成功"})";
+            // rsp.set_header("Content-Type", "application/json");
             _log.info("Server.Insert", "database insert finished! path:%s", video_path.c_str());
-            // rsp.set_redirect("/index.html", 303); // 将用户重定向到主页
+            rsp.set_redirect("/index.html", 303); // 将用户重定向到主页
             return;
         }
         // 更新视频，暂时只支持更新视频标题和简介
