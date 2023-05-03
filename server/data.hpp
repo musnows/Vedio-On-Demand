@@ -190,7 +190,7 @@ namespace vod
                 _log.error("Video SelectAll","mysql store result failed");
                 return false;
             }
-            _mutex.unlock();
+            //_mutex.unlock();
             int num_rows = mysql_num_rows(res);//获取结果集的行数
             for (int i = 0; i < num_rows; i++) {
                 MYSQL_ROW row = mysql_fetch_row(res);//获取每一行的列数
@@ -205,6 +205,7 @@ namespace vod
                 video_s->append(video);
             }
             mysql_free_result(res);//释放结果集
+            _mutex.unlock();
             _log.info("Video SelectAll","select all finished");
             return true;
         }
@@ -230,7 +231,7 @@ namespace vod
                 _log.error("Video SelectOne","mysql store result failed");
                 return false;
             }
-            _mutex.unlock();
+            //_mutex.unlock();
             int num_rows = mysql_num_rows(res);//获取结果集的行数
             if(num_rows==0){//一行都没有，空空如也
                 _log.warning("Video SelectOne","no target id '%s' is found",video_id.c_str());
@@ -250,6 +251,7 @@ namespace vod
             (*video)["cover"] = row[4];
             (*video)["insert_time"] = row[5];
             mysql_free_result(res);
+            _mutex.unlock();
             _log.info("Video SelectOne","id '%s' found",video_id.c_str());
             return true;
         }
@@ -279,7 +281,7 @@ namespace vod
                 _log.error("Video SelectLike","mysql store result failed");
                 return false;
             }
-            _mutex.unlock();
+            //_mutex.unlock();
             int num_rows = mysql_num_rows(res);//获取结果集的行数
             for (int i = 0; i < num_rows; i++) {
                 MYSQL_ROW row = mysql_fetch_row(res);//获取每一行的列数
@@ -293,6 +295,7 @@ namespace vod
                 video_s->append(video);
             }
             mysql_free_result(res);//释放结果集
+            _mutex.unlock();
             _log.info("Video SelectLike","select like '%s' finished",key.c_str());//key不会过长
             return true;
         }
@@ -319,7 +322,7 @@ namespace vod
                 _log.error("SelectVideoView","mysql store result failed");
                 return false;
             }
-            _mutex.unlock();
+            //_mutex.unlock();
             // 这里是调用参数里面的对象的[]重载，所以需要解引用
             // 先都设置一下返回值里面的视频id
             (*video_view)["id"] = video_id;
@@ -344,6 +347,7 @@ namespace vod
             size_t new_view = atoi(row[3])+1;
             (*video_view)["view"] = new_view ; // 返回之后需要调用inset再给view+1，所以这里返回值就直接+1了
             mysql_free_result(res);
+            _mutex.unlock();
             _log.info("SelectVideoView","id '%s' found",video_id.c_str());
             // 给view+1
             if(update_view && !UpdateVideoView(video_id,new_view)){
