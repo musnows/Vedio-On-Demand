@@ -139,7 +139,7 @@ namespace vod
         static void Update(const httplib::Request &req, httplib::Response &rsp)
         {
             _log.info("Server.Update", "put recv from %s", req.remote_addr.c_str());
-            static const std::vector<const char *> upd_key = {"name", "info"};
+            // static const std::vector<const char *> upd_key = {"name", "info"};
             // 错误，这里不应该检查有没有对应键值，因为请求是通过axjx传过来的，并不是form表单传入
             // 使用循环来判断文件中是否含有这些字段，没有就返回400
             // if (!ReqKeyCheck("Server.Update", upd_key, req, rsp))
@@ -260,6 +260,35 @@ namespace vod
             rsp.set_header("Content-Type", "application/json");
             return;
         }
+        // 更新点赞和点踩
+        static void UpdateVideoUp(const httplib::Request &req, httplib::Response &rsp)
+        {
+            _log.info("Server.UpdateVideoUp", "get recv from %s", req.remote_addr.c_str());
+            std::string video_id = req.matches[1];                                   // 从匹配的正则中获取到视频id
+            _log.info("Server.UpdateVideoUp", "video id recv! id: [%s]", video_id.c_str()); // 将id括起来可以看出来是否有空格
+            if (!IsVideoExists("Server.UpdateVideoUp", video_id, rsp))
+                return;
+            if (!VideoTable.UpdateVideoUpDown(video_id,true))
+                return MysqlErrHandler("Server.UpdateVideoUp", rsp);
+
+            rsp.body = R"({"code":0, "message":"更新点赞成功"})";
+            rsp.set_header("Content-Type", "application/json");
+            _log.info("Server.UpdateVideoUp", "update success! id: [%s]", video_id.c_str());
+        }
+        static void UpdateVideoDown(const httplib::Request &req, httplib::Response &rsp)
+        {
+            _log.info("Server.UpdateVideoDown", "get recv from %s", req.remote_addr.c_str());
+            std::string video_id = req.matches[1];                                   // 从匹配的正则中获取到视频id
+            _log.info("Server.UpdateVideoDown", "video id recv! id: [%s]", video_id.c_str()); // 将id括起来可以看出来是否有空格
+            if (!IsVideoExists("Server.UpdateVideoDown", video_id, rsp))
+                return;
+            if (!VideoTable.UpdateVideoUpDown(video_id,false))
+                return MysqlErrHandler("Server.UpdateVideoDown", rsp);
+
+            rsp.body = R"({"code":0, "message":"更新点踩成功"})";
+            rsp.set_header("Content-Type", "application/json");
+            _log.info("Server.UpdateVideoDown", "update success! id: [%s]", video_id.c_str());
+        }
 
     public:
         Server(size_t port = DEFAULT_SERVER_PORT)
@@ -291,14 +320,17 @@ namespace vod
             // 2.1 设置静态资源根目录
             _srv.set_mount_point("/", Conf["root"].asString());
             // 2.2 添加请求-处理函数映射关系
-            _srv.Post("/video", Insert);
             //  正则匹配
-            // 获取视频的点赞点踩信息，这个应该放在上面避免view被下方其他正则捕获
+            //  获取视频的点赞点踩信息，这个应该放在上面避免view被下方其他正则捕获
+            _srv.Put("/video/view/up/([A-Za-z0-9]+)", UpdateVideoUp);
+            _srv.Put("/video/view/down/([A-Za-z0-9]+)", UpdateVideoDown);
             _srv.Get("/video/view/([A-Za-z0-9]+)", GetOneView);
+            // 视频本身的操作
             _srv.Delete("/video/([A-Za-z0-9]+)", Delete);
             _srv.Put("/video/([A-Za-z0-9]+)", Update);
             _srv.Get("/video/([A-Za-z0-9]+)", GetOne);
             _srv.Get("/video", GetAll);
+            _srv.Post("/video", Insert);
             // 3.指定端口，启动服务器
             //   这里必须用0.0.0.0，否则其他设备无法访问
             _srv.listen("0.0.0.0", _port);
