@@ -212,6 +212,22 @@ namespace vod
             rsp.set_header("Content-Type", "application/json");
             _log.info("Server.GetOne", "get success! id: [%s]", video_id.c_str());
         }
+        // 通过视频id获取视频d的点赞信息
+        static void GetOneView(const httplib::Request &req, httplib::Response &rsp)
+        {
+            _log.info("Server.GetOneView", "get recv from %s", req.remote_addr.c_str());
+            std::string video_id = req.matches[1];                                   // 从匹配的正则中获取到视频id
+            _log.info("Server.GetOneView", "video id recv! id: [%s]", video_id.c_str()); // 将id括起来可以看出来是否有空格
+            if (!IsVideoExists("Server.GetOneView", video_id, rsp))
+                return;
+            Json::Value video;
+            if (!VideoTable.SelectVideoView(video_id, &video,true))
+                return MysqlErrHandler("Server.GetOneView", rsp);
+
+            JsonUtil::Serialize(video, &rsp.body);
+            rsp.set_header("Content-Type", "application/json");
+            _log.info("Server.GetOneView", "get success! id: [%s]", video_id.c_str());
+        }
         // 通过视频路径获取所有视频，或者用query参数来进行搜搜
         static void GetAll(const httplib::Request &req, httplib::Response &rsp)
         {
@@ -280,6 +296,7 @@ namespace vod
             _srv.Delete("/video/([A-Za-z0-9]+)", Delete);
             _srv.Put("/video/([A-Za-z0-9]+)", Update);
             _srv.Get("/video/([A-Za-z0-9]+)", GetOne);
+            _srv.Get("/video/view/([A-Za-z0-9]+)", GetOneView);//获取视频的点赞点踩信息
             _srv.Get("/video", GetAll);
             // 3.指定端口，启动服务器
             //   这里必须用0.0.0.0，否则其他设备无法访问
