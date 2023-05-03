@@ -6,3 +6,10 @@ create table tb_video(
     cover VARCHAR(255) comment '视频封面链接',
     insert_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP comment '视频创建时间'
 );
+
+create table tb_views(
+    id varchar(8) NOT NULL comment '视频id',
+    up int NOT NULL DEFAULT 0 comment '视频点赞', 
+    down int NOT NULL DEFAULT 0 comment '视频点踩',
+    view int NOT NULL DEFAULT 0 comment '视频观看量'
+);

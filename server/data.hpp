@@ -76,7 +76,8 @@ namespace vod
     private:
         MYSQL *_mysql;     // 一个对象就是一个客户端，管理一张表
         std::mutex _mutex; // 使用C++的线程，而不直接使用linux的pthread
-        std::string _table_name;// 视频表名称
+        std::string _video_table;// 视频表名称
+        std::string _view_table; // 视频点赞信息表名称
 
         //检查视频id是否符合规范
         bool check_video_id(const std::string& def_name,const std::string& video_id)
@@ -113,12 +114,12 @@ namespace vod
             }
             // 读取表名
             Json::Value conf;
-            if(!FileUtil(CONF_FILEPATH).GetContent(&_table_name)){
+            if(!FileUtil(CONF_FILEPATH).GetContent(&_video_table)){
                 _log.fatal("VideoTb init","table_name read err | abort!");
                 abort();
             }
-            JsonUtil::UnSerialize(_table_name, &conf);
-            _table_name = conf["mysql"]["table"]["video"].asString();
+            JsonUtil::UnSerialize(_video_table, &conf);
+            _video_table = conf["mysql"]["table"]["video"].asString();
             _log.info("VideoTb init","init success");
         }
         // 释放msyql操作句柄
@@ -133,7 +134,7 @@ namespace vod
             #define INSERT_VIDEO "insert into %s (name,info,video,cover) values ('%s','%s','%s','%s');"
             std::string sql;
             sql.resize(2048+video["info"].asString().size());//扩容，避免简介超过预定义长度
-            sprintf((char*)sql.c_str(),INSERT_VIDEO,_table_name.c_str(),
+            sprintf((char*)sql.c_str(),INSERT_VIDEO,_video_table.c_str(),
                                     video["name"].asCString(),
                                     video["info"].asCString(),
                                     video["video"].asCString(),
@@ -148,7 +149,7 @@ namespace vod
             #define UPDATE_VIDEO_INFO "update %s set name='%s',info='%s' where id='%s';"
             std::string sql;
             sql.resize(2048+video["info"].asString().size());//扩容，避免简介超过预定义长度
-            sprintf((char*)sql.c_str(),UPDATE_VIDEO_INFO,_table_name.c_str(),
+            sprintf((char*)sql.c_str(),UPDATE_VIDEO_INFO,_video_table.c_str(),
                                     video["name"].asCString(),
                                     video["info"].asCString(),
                                     video_id.c_str());
@@ -161,7 +162,7 @@ namespace vod
             #define DELETE_VIDEO "delete from %s where id='%s';"
             std::string sql;
             sql.resize(1024);//扩容
-            sprintf((char*)sql.c_str(),DELETE_VIDEO,_table_name.c_str(),video_id.c_str());
+            sprintf((char*)sql.c_str(),DELETE_VIDEO,_video_table.c_str(),video_id.c_str());
             return MysqlQuery(_mysql,sql);//执行语句
         }
         // 查询所有-输出所有视频信息（视频列表）
@@ -170,7 +171,7 @@ namespace vod
             #define SELET_ALL "select * from %s;"
             std::string sql;
             sql.resize(512);
-            sprintf((char*)sql.c_str(),SELET_ALL,_table_name.c_str());
+            sprintf((char*)sql.c_str(),SELET_ALL,_video_table.c_str());
             // 这里加锁是为了保证结果集能被正常报错（并不是防止修改原子性问题,mysql本身就已经维护了原子性）
             // 下方执行语句后，如果不保存结果集 而又执行一次搜索语句，之前搜索的结果就会丢失
             // 加锁是为了保证同一时间只有一个执行流在进行查询操作，避免结果集丢失
@@ -213,7 +214,7 @@ namespace vod
             #define SELECT_ONE_VIDEO "select * from %s where id='%s';"
             std::string sql;
             sql.resize(512);
-            sprintf((char*)sql.c_str(),SELECT_ONE_VIDEO,_table_name.c_str(),video_id.c_str());
+            sprintf((char*)sql.c_str(),SELECT_ONE_VIDEO,_video_table.c_str(),video_id.c_str());
             _mutex.lock();
             // 语句执行失败了
             if (!MysqlQuery(_mysql, sql)) {
@@ -262,7 +263,7 @@ namespace vod
             #define SELECT_LIKE "select * from %s where name like '%%%s%%';"//模糊匹配
             std::string sql;
             sql.resize(512+key.size());
-            sprintf((char*)sql.c_str(),SELECT_LIKE,_table_name.c_str(),key.c_str());
+            sprintf((char*)sql.c_str(),SELECT_LIKE,_video_table.c_str(),key.c_str());
             _mutex.lock();
             // 语句执行失败了
             if (!MysqlQuery(_mysql, sql)) {
@@ -293,6 +294,16 @@ namespace vod
             mysql_free_result(res);//释放结果集
             _log.info("Video SelectLike","select like '%s' finished",key.c_str());//key不会过长
             return true;
+        }
+
+        bool VideoView(const Json::Value & video)
+        {
+            if(!check_video_id("Video View",video["id"].asString()))return false;//视频id不符合规范
+            std::string sql;
+            sql.resize(512);
+            // 先查询再插入
+            #define SEARCH_VIDEO_VIEW "select * from '%s' where id='';"
+            sprintf("");
         }
     };
 }

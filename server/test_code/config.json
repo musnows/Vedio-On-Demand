@@ -6,7 +6,8 @@
         "passwd": "",
         "database": "vod_system",
         "table": {
-            "video":"tb_video"
+            "video":"tb_video",
+            "views":"tb_views"
         }
     },
     "web":{
