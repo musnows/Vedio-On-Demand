@@ -77,7 +77,7 @@ namespace vod
         MYSQL *_mysql;     // 一个对象就是一个客户端，管理一张表
         std::mutex _mutex; // 使用C++的线程，而不直接使用linux的pthread
         std::string _video_table;// 视频表名称
-        std::string _view_table; // 视频点赞信息表名称
+        std::string _views_table; // 视频点赞信息表名称
 
         //检查视频id是否符合规范
         bool check_video_id(const std::string& def_name,const std::string& video_id)
@@ -120,6 +120,7 @@ namespace vod
             }
             JsonUtil::UnSerialize(_video_table, &conf);
             _video_table = conf["mysql"]["table"]["video"].asString();
+            _views_table = conf["mysql"]["table"]["views"].asString();
             _log.info("VideoTb init","init success");
         }
         // 释放msyql操作句柄
@@ -295,15 +296,54 @@ namespace vod
             _log.info("Video SelectLike","select like '%s' finished",key.c_str());//key不会过长
             return true;
         }
-
-        bool VideoView(const Json::Value & video)
+        // 查询视频的view（点击量 点赞等等信息）
+        bool SelectVideoView(const std::string & video_id,Json::Value * video_view)
         {
-            if(!check_video_id("Video View",video["id"].asString()))return false;//视频id不符合规范
+            if(!check_video_id("Video View",video_id))return false;//视频id不符合规范
             std::string sql;
             sql.resize(512);
             // 先查询再插入
-            #define SEARCH_VIDEO_VIEW "select * from '%s' where id='';"
-            sprintf("");
+            #define SELECT_VIDEO_VIEW "select * from '%s' where id='%s';"
+            sprintf((char*)sql.c_str(),SELECT_VIDEO_VIEW,_views_table.c_str(),video_id.c_str());
+            _mutex.lock();
+            if(!MysqlQuery(_mysql,sql)){
+                _mutex.unlock();
+                _log.error("SelectVideoView","query failed");
+                return false;
+            }
+            // 保存结果集到本地
+            MYSQL_RES*res=mysql_store_result(_mysql);
+            if(res==nullptr){
+                _mutex.unlock();
+                _log.error("SelectVideoView","mysql store result failed");
+                return false;
+            }
+            _mutex.unlock();
+            // 这里是调用参数里面的对象的[]重载，所以需要解引用
+            // 先都设置一下返回值里面的视频id
+            (*video_view)["id"] = video_id;
+            int num_rows=mysql_num_rows(res);//获取行数
+            if(num_rows==0){
+                // 没有就插入一个
+                _log.info("SelectVideoView","no target id '%s' is found",video_id.c_str());
+                #define INSERT_VIDEO_VIEW "insert into '%s' (id,up,down,view) values ('%s',0,0,1);"
+                sprintf((char*)sql.c_str(),INSERT_VIDEO_VIEW,_views_table.c_str(),video_id.c_str());
+                (*video_view)["up"] = 0;//初始值都是0
+                (*video_view)["down"] = 0;
+                (*video_view)["view"] = 1;//这里新建的时候，代表用户已经点击进入视频页面了，所以初始值是1
+                return MysqlQuery(_mysql,sql);
+            }
+            else if(num_rows>1){
+                _log.fatal("SelectVideoView","id '%s' more than once!",video_id.c_str());//id不唯一，更有问题了
+                return false;
+            }
+            MYSQL_ROW row = mysql_fetch_row(res);
+            (*video_view)["up"] = atoi(row[1]);//全都要转成int
+            (*video_view)["down"] = atoi(row[2]);
+            (*video_view)["view"] = atoi(row[3]);
+            mysql_free_result(res);
+            _log.info("SelectVideoView","id '%s' found",video_id.c_str());
+            return true;
         }
     };
 }
