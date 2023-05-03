@@ -2,10 +2,12 @@
 #define __MY_DATA__
 #include "utils.hpp"
 #include <mutex>
+#include <ctime>
 #include <cstdlib>
 #include <mysql/mysql.h>
 namespace vod
 {
+#define TIME_DELETA 8 //东八区 
 #define CONF_FILEPATH "./config.json"//日志文件路径
 #define VEDIO_INFO_MAX_LEN 4096 //视频简介不能过长
     // 调用初始化操作连接数据库
@@ -196,6 +198,7 @@ namespace vod
                 video["info"] = row[2];
                 video["video"] = row[3];
                 video["cover"] = row[4];
+                video["insert_time"] = row[5]; //mysql中存放的就是可读时间 （其实存时间戳更好）
                 //json list
                 video_s->append(video);
             }
@@ -243,6 +246,7 @@ namespace vod
             (*video)["info"] = row[2];
             (*video)["video"] = row[3];
             (*video)["cover"] = row[4];
+            (*video)["insert_time"] = row[5];
             mysql_free_result(res);
             _log.info("Video SelectOne","id '%s' found",video_id.c_str());
             return true;
