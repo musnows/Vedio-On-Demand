@@ -293,10 +293,11 @@ namespace vod
             // 2.2 添加请求-处理函数映射关系
             _srv.Post("/video", Insert);
             //  正则匹配
+            // 获取视频的点赞点踩信息，这个应该放在上面避免view被下方其他正则捕获
+            _srv.Get("/video/view/([A-Za-z0-9]+)", GetOneView);
             _srv.Delete("/video/([A-Za-z0-9]+)", Delete);
             _srv.Put("/video/([A-Za-z0-9]+)", Update);
             _srv.Get("/video/([A-Za-z0-9]+)", GetOne);
-            _srv.Get("/video/view/([A-Za-z0-9]+)", GetOneView);//获取视频的点赞点踩信息
             _srv.Get("/video", GetAll);
             // 3.指定端口，启动服务器
             //   这里必须用0.0.0.0，否则其他设备无法访问

@@ -105,13 +105,13 @@
                            </div>
                            <div class="metabox">
                               <span class="meta-i">
-                                 <i class="fa fa-thumbs-up" aria-hidden="true"></i>20.895
+                                 <i class="fa fa-thumbs-up" aria-hidden="true"></i>{{video_view.up}}
                               </span>
                               <span class="meta-i">
-                                 <i class="fa fa-thumbs-down" aria-hidden="true"></i>3.981
+                                 <i class="fa fa-thumbs-down" aria-hidden="true"></i>{{video_view.down}}
                               </span>
                               <span class="meta-i">
-                                 <i class="fa fa-eye"></i>1,347,912 views
+                                 <i class="fa fa-eye"></i>{{video_view.view}}
                               </span>
                               <span class="meta-i">
                                  <i class="fa fa-clock-o"></i>{{video.insert_time}}
@@ -268,10 +268,22 @@
                   window.location.href = "/index.html";
                }
             })
+         },
+         get_video_view: function(){
+            var id = this.get_param("id");
+            $.ajax({
+               url: "/video/view/" + id,
+               type: "get",
+               context: this,
+               success: function (result, status, xhr) {
+                  this.video_view = result;
+               }
+            })
          }
       }
    });
    app.get_video();
+   app.get_video_view();
 </script>
 
 </html>
