@@ -297,13 +297,14 @@ namespace vod
             return true;
         }
         // 查询视频的view（点击量 点赞等等信息）
-        bool SelectVideoView(const std::string & video_id,Json::Value * video_view)
+        // update_view 是否需要更新view计数器
+        bool SelectVideoView(const std::string & video_id,Json::Value * video_view,bool update_view=false)
         {
             if(!check_video_id("Video View",video_id))return false;//视频id不符合规范
             std::string sql;
             sql.resize(512);
             // 先查询再插入
-            #define SELECT_VIDEO_VIEW "select * from '%s' where id='%s';"
+            #define SELECT_VIDEO_VIEW "select * from %s where id='%s';"
             sprintf((char*)sql.c_str(),SELECT_VIDEO_VIEW,_views_table.c_str(),video_id.c_str());
             _mutex.lock();
             if(!MysqlQuery(_mysql,sql)){
@@ -326,7 +327,7 @@ namespace vod
             if(num_rows==0){
                 // 没有就插入一个
                 _log.info("SelectVideoView","no target id '%s' is found",video_id.c_str());
-                #define INSERT_VIDEO_VIEW "insert into '%s' (id,up,down,view) values ('%s',0,0,1);"
+                #define INSERT_VIDEO_VIEW "insert into %s (id,up,down,view) values ('%s',0,0,1);"
                 sprintf((char*)sql.c_str(),INSERT_VIDEO_VIEW,_views_table.c_str(),video_id.c_str());
                 (*video_view)["up"] = 0;//初始值都是0
                 (*video_view)["down"] = 0;
@@ -340,10 +341,49 @@ namespace vod
             MYSQL_ROW row = mysql_fetch_row(res);
             (*video_view)["up"] = atoi(row[1]);//全都要转成int
             (*video_view)["down"] = atoi(row[2]);
-            (*video_view)["view"] = atoi(row[3]);
+            size_t new_view = atoi(row[3])+1;
+            (*video_view)["view"] = new_view ; // 返回之后需要调用inset再给view+1，所以这里返回值就直接+1了
             mysql_free_result(res);
             _log.info("SelectVideoView","id '%s' found",video_id.c_str());
+            // 给view+1
+            if(update_view && !UpdateVideoView(video_id,new_view)){
+                _log.error("SelectVideoView","id '%s' view update false | %d",video_id.c_str(),new_view);
+            }
             return true;
+        }
+        // view数量+1，传入的view应该是`更新后`的值
+        bool UpdateVideoView(const std::string& video_id,size_t video_view){
+            if(!check_video_id("Video SelectOne",video_id))return false;
+            //更新view
+            #define UPDATE_VIDEO_VIEW "update %s set view=%d where id='%s';"
+            std::string sql;
+            sql.resize(256);
+            sprintf((char*)sql.c_str(),UPDATE_VIDEO_VIEW,_views_table.c_str(),video_view,video_id.c_str());
+            return MysqlQuery(_mysql,sql);
+        }
+        // up和down的更新
+        // up_flag：true更新up / false更新down
+        bool UpdateVideoUpDown(const std::string& video_id,bool up_flag = true)
+        {
+            if(!check_video_id("Video SelectOne",video_id))return false;
+            #define UPDATE_VIDEO_UP "update %s set up=%d where id='%s';"
+            #define UPDATE_VIDEO_DOWN "update %s set down=%d where id='%s';"
+            std::string sql;
+            sql.resize(256);
+            Json::Value video_view;//视频点赞信息
+            if(!SelectVideoView(video_id,&video_view,false)){
+                _log.warning("UpdateVideoUpDown","id '%s' select old up/down failed",video_id.c_str());
+                return false;
+            }
+            if(up_flag){
+                size_t value = video_view["up"].asUInt() + 1;
+                sprintf((char*)sql.c_str(),UPDATE_VIDEO_UP,_views_table.c_str(),value,video_id.c_str());
+            }
+            else{
+                size_t value = video_view["down"].asUInt() + 1;
+                sprintf((char*)sql.c_str(),UPDATE_VIDEO_DOWN,_views_table.c_str(),value,video_id.c_str());
+            }
+            return MysqlQuery(_mysql,sql);
         }
     };
 }

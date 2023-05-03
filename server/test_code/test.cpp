@@ -72,7 +72,7 @@ void MysqlTest()
 	// // video["cover"] = "/img/yangwangu9.jpg";
 	// // testable.Insert(video);
 	// //testable.Update("90182b88",video);
-	testable.Delete("0124a42523");
+	// testable.Delete("0124a42523");
 
 	// 关键词搜索
 	// testable.SelectLike("仰",&video);
@@ -92,6 +92,10 @@ void MysqlTest()
 	// 									video["info"].asCString(),
 	// 									video["video"].asCString(),
 	// 									video["cover"].asCString());
+
+	testable.SelectVideoView("d41d3849",&video,true);
+	testable.UpdateVideoUpDown("d41d3849");
+	testable.UpdateVideoUpDown("d41d3849",false);
 }
 
 int main()
