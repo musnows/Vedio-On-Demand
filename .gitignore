@@ -1,7 +1,10 @@
 .vscode/
 .tmp
 
-# www/
+# 忽略可执行文件
+main-server
+
 # 忽略资源文件的路径
+# www/
 www/image/
 www/video/
