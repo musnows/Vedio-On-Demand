@@ -1,5 +1,5 @@
 #include "server/server.hpp"
-#define PORT 50000//服务端所用端口
+#define PORT 50001 //服务端所用端口
 
 int main()
 {

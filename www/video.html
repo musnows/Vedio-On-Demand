@@ -1,0 +1,261 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+
+<head>
+   <meta charset="utf-8">
+   <meta name="viewport" content="width=device-width, initial-scale=1">
+   <meta name="description" content="">
+   <meta name="author" content="OrcasThemes">
+   <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+   <title></title>
+   <!-- Bootstrap core CSS -->
+   <link href="css/bootstrap.css" rel="stylesheet">
+   <!-- Custom styles for this template -->
+   <link rel="stylesheet" href="css/screen.css">
+   <link rel="stylesheet" href="css/animation.css">
+   <link rel="stylesheet" href="css/font-awesome.css">
+   <link href="css/lity.css" rel="stylesheet">
+
+   <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
+   <script src="js/jquery-1.12.1.min.js"></script>
+   <script src="js/bootstrap.min.js"></script>
+   <script src="js/lity.js"></script>
+   <script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+</head>
+
+<body>
+   <div id="myapp">
+      <!-- SINGLE VIDEO -->
+      <div id="single-video" class="container-fluid standard-bg">
+         <!-- HEADER -->
+         <div class="row header-top">
+            <div class="col-lg-3 col-md-6 col-sm-5">
+               <a class="main-logo" href="#"><img src="img/main-logo.png" class="main-logo" alt="Muvee Reviews"
+                     title="Muvee Reviews"></a>
+            </div>
+            <div class="col-lg-6 hidden-md text-center hidden-sm hidden-xs">
+
+            </div>
+            <div class="col-lg-3 col-md-6 col-sm-7 hidden-xs">
+               <div class="right-box">
+                  <button type="button" class="access-btn" v-on:click="delete_video()">视频删除</button>
+                  <button type="button" class="access-btn" data-toggle="modal" data-target="#enquirypopup">视频修改</button>
+               </div>
+            </div>
+         </div>
+         <!-- MENU -->
+         <div class="row home-mega-menu ">
+            <div class="col-md-12">
+               <nav class="navbar navbar-default">
+                  <div class="navbar-header">
+                     <button class="navbar-toggle" type="button" data-toggle="collapse"
+                        data-target=".js-navbar-collapse">
+                        <span class="sr-only">Toggle navigation</span>
+                        <span class="icon-bar"></span>
+                        <span class="icon-bar"></span>
+                        <span class="icon-bar"></span>
+                     </button>
+                  </div>
+                  <div class="collapse navbar-collapse js-navbar-collapse megabg dropshd ">
+                     <ul class="nav navbar-nav">
+                        <li><a href="index.html">视频点播</a></li>
+                     </ul>
+                     <div class="search-block">
+                        <form>
+                           <input type="search" placeholder="Search">
+                        </form>
+                     </div>
+                  </div>
+                  <!-- /.nav-collapse -->
+               </nav>
+            </div>
+         </div>
+         <!-- SINGLE VIDEO -->
+         <div class="row">
+            <!-- SIDEBAR -->
+            <div class="col-lg-2 col-md-4 hidden-sm hidden-xs">
+            </div>
+            <!-- SINGLE VIDEO -->
+            <div id="single-video-wrapper" class="col-lg-10 col-md-8">
+               <div class="row">
+                  <!-- VIDEO SINGLE POST -->
+                  <div class="col-lg-9 col-md-12 col-sm-12">
+                     <!-- POST L size -->
+                     <article class="post-video">
+                        <!-- VIDEO INFO -->
+                        <div class="video-info">
+                           <!-- 16:9 aspect ratio -->
+                           <div class="embed-responsive embed-responsive-16by9 video-embed-box">
+                              <iframe v-bind:src="video.video" class="embed-responsive-item"></iframe>
+                           </div>
+                           <div class="metabox">
+                              <span class="meta-i">
+                                 <i class="fa fa-thumbs-up" aria-hidden="true"></i>20.895
+                              </span>
+                              <span class="meta-i">
+                                 <i class="fa fa-thumbs-down" aria-hidden="true"></i>3.981
+                              </span>
+                              <span class="meta-i">
+                                 <i class="fa fa-user"></i><a href="#" class="author" title="John Doe">John Doe</a>
+                              </span>
+                              <span class="meta-i">
+                                 <i class="fa fa-clock-o"></i>March 16. 2017
+                              </span>
+                              <span class="meta-i">
+                                 <i class="fa fa-eye"></i>1,347,912 views
+                              </span>
+                              <div class="ratings">
+                                 <i class="fa fa-star" aria-hidden="true"></i>
+                                 <i class="fa fa-star" aria-hidden="true"></i>
+                                 <i class="fa fa-star-half-o" aria-hidden="true"></i>
+                                 <i class="fa fa-star-o"></i>
+                                 <i class="fa fa-star-half"></i>
+                              </div>
+                           </div>
+                        </div>
+                        <div class="clearfix spacer"></div>
+                        <!-- DETAILS -->
+                        <div class="video-content">
+                           <h2 class="title main-head-title">视频描述</h2>
+                           <p>{{video.info}}</p>
+                        </div>
+                        <div class="clearfix spacer"></div>
+                        <!-- MAIN ROLL ADVERTISE BOX -->
+                     </article>
+
+
+                  </div>
+
+                  <!-- VIDEO SIDE BANNERS -->
+                  <div class="col-lg-3 hidden-md hidden-sm">
+                  </div>
+               </div>
+               <div class="clearfix spacer"></div>
+               <div class="row">
+               </div>
+            </div>
+         </div>
+      </div>
+      <!-- CHANNELS -->
+      <div id="channels-block" class="container-fluid channels-bg">
+         <div class="container-fluid ">
+            <div class="col-md-12">
+               <!-- CHANNELS -->
+               <section id="channels">
+               </section>
+               <div class="clearfix"></div>
+            </div>
+         </div>
+      </div>
+      <!-- BOTTOM BANNER -->
+      <div id="bottom-banner" class="container text-center">
+      </div>
+      <!-- FOOTER -->
+      <div id="footer" class="container-fluid footer-background">
+         <div class="container">
+            <footer>
+               <!-- SECTION FOOTER -->
+               <div class="row">
+                  <!-- TAGS -->
+                  <!-- POST -->
+                  <!-- LINKS -->
+               </div>
+               <div class="row copyright-bottom text-center">
+                  <div class="col-md-12 text-center">
+                     <a href="" class="footer-logo" title="Video Magazine Bootstrap HTML5 template">
+                        <img src="img/footer-logo.png" class="img-responsive text-center"
+                           alt="Video Magazine Bootstrap HTML5 template">
+                     </a>
+                     <p>Copyright &copy; Author by {{author}}</p>
+
+                  </div>
+               </div>
+            </footer>
+         </div>
+      </div>
+      <!-- MODAL -->
+      <div id="enquirypopup" class="modal fade in " role="dialog">
+         <div class="modal-dialog">
+            <!-- Modal content-->
+            <div class="modal-content row">
+               <div class="modal-header custom-modal-header">
+                  <button type="button" class="close" data-dismiss="modal">×</button>
+                  <h2 class="icon"><i class="fa fa-television" aria-hidden="true"></i>视频信息修改</h2>
+               </div>
+               <div class="modal-body">
+                  <form name="info_form" class="form-inline" action="#" method="post">
+                     <div class="form-group col-sm-12">
+                        <input type="text" class="form-control" name="name" v-model="video.name">
+                     </div>
+                     <div class="form-group col-sm-12">
+                        <input type="text" class="form-control" name="info" v-model="video.info">
+                     </div>
+                     <div class="form-group col-sm-12">
+                        <button class="subscribe-btn pull-right" title="Subscribe"
+                           v-on:click.prevent="update_video()">提交</button>
+                     </div>
+                  </form>
+               </div>
+            </div>
+         </div>
+      </div>
+   </div>
+</body>
+<!-- JAVA SCRIPT -->
+
+<script>
+   $(".nav .dropdown").hover(function () {
+      $(this).find(".dropdown-toggle").dropdown("toggle");
+   });
+</script>
+<script>
+   let app = new Vue({
+      el: '#myapp',
+      data: {
+         author: "Zhangwenchao",
+         video: {}
+      },
+      methods: {
+         get_param: function (name) {
+            return decodeURIComponent((new RegExp('[?|&]' + name + '=' + '([^&;]+?)(&|#|;|$)').exec(location.href) || [, ""])[1].replace(/\+/g, '%20')) || null
+         },
+         get_video: function () {
+            var id = this.get_param("id");
+            $.ajax({
+               url: "/video/" + id,
+               type: "get",
+               context: this,
+               success: function (result, status, xhr) {
+                  this.video = result;
+               }
+            })
+         },
+         update_video: function () {
+            $.ajax({
+               url: "/video/" + this.video.id,
+               type: "put",
+               data: JSON.stringify(this.video),
+               context: this,
+               success: function (result, status, xhr) {
+                  alert("修改视频信息成功");
+                  window.location.reload();
+               }
+            })
+         },
+         delete_video: function () {
+            $.ajax({
+               url: "/video/" + this.video.id,
+               type: "delete",
+               context: this,
+               success: function (result, status, xhr) {
+                  alert("删除视频成功");
+                  window.location.href = "/index.html";
+               }
+            })
+         }
+      }
+   });
+   app.get_video();
+</script>
+
+</html>
