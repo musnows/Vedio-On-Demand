@@ -9,6 +9,10 @@ test:
 run:
 	nohup ./vod-server >> server.log 2>&1 &
 
+.PHONY:ps
+ps:
+	ps jax | head -1 && ps jax | grep vod-server | grep -v grep
+
 .PHONY:clean
 clean:
 	rm vod-server
