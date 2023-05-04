@@ -11,18 +11,48 @@ namespace vod
 #define TIME_DELETA 8 //东八区 
 #define CONF_FILEPATH "./config.json"//日志文件路径
 #define VEDIO_INFO_MAX_LEN 4096 //视频简介不能过长
+// 视频数据表
+#define VIDEO_TABLE_CREATE "create table if not exists tb_video (\
+id VARCHAR(8) NOT NULL DEFAULT (substring(UUID(), 1, 8)) comment '视频id', \
+name VARCHAR(50) comment '视频标题',\
+info text comment '视频简介',\
+video VARCHAR(255) comment '视频链接',\
+cover VARCHAR(255) comment '视频封面链接',\
+insert_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP comment '视频创建时间',\
+UNIQUE(id));"
+// 视频点赞信息数据表
+#define VIEWS_TABLE_CREATE "create table if not exists tb_views (\
+id varchar(8) NOT NULL comment '视频id',\
+up int NOT NULL DEFAULT 0 comment '视频点赞', \
+down int NOT NULL DEFAULT 0 comment '视频点踩',\
+view int NOT NULL DEFAULT 0 comment '视频观看量',\
+UNIQUE(id));"
+
+    // 执行mysql语句，返回值为是否执行成功
+    static bool MysqlQuery(MYSQL *mysql, const std::string &sql)
+    {
+        int ret = mysql_query(mysql, sql.c_str());
+        // 语句执行失败
+		if (ret != 0) {
+            _log.error("MysqlQuery.Err","sql: %s",sql.c_str());
+            _log.error("MysqlQuery.Err","err[%u]: %s",mysql_errno(mysql),mysql_error(mysql));
+			return false;
+		}
+        _log.info("MysqlQuery.Success","sql: %s",sql.c_str());
+		return true;
+    }
     // 调用初始化操作连接数据库
     static MYSQL *MysqlInit(const std::string& conf_path)
     {
         // 配置文件不能为空
         if (conf_path.size()==0){
-            _log.fatal("mysql init","conf_path empty");
+            _log.fatal("MysqlInit","conf_path empty");
             return nullptr;
         }
         MYSQL *mysql = mysql_init(nullptr);
         if (mysql == nullptr)
         {
-            _log.fatal("mysql init", "mysql init failed!");
+            _log.fatal("MysqlInit", "mysql init failed!");
             return nullptr;
         }
         //读取配置文件
@@ -30,7 +60,7 @@ namespace vod
         Json::Value conf;
         if(!FileUtil(conf_path).GetContent(&tmp_str)){
             //保证读取配置文件不要出错
-            _log.fatal("mysql init","get mysql config err");
+            _log.fatal("MysqlInit","get mysql config err");
             return nullptr;
         }
         JsonUtil::UnSerialize(tmp_str, &conf);
@@ -42,36 +72,34 @@ namespace vod
                                         conf["mysql"]["port"].asUInt(), 
                                         nullptr, 0) == nullptr)
         {
-            _log.fatal("mysql init", "mysql server connect failed!");
+            _log.fatal("MysqlInit", "mysql server connect failed!");
             return nullptr;
         }
         mysql_set_character_set(mysql, "utf8");
-        _log.info("mysql init", "mysql init success");
+        _log.info("MysqlInit", "mysql init success");
+        // 创建两个数据表
+        if(!MysqlQuery(mysql,VIDEO_TABLE_CREATE)){
+            _log.fatal("MysqlInit", "mysql VIDEO_TABLE_CREATE failed!");
+            return nullptr;
+        }
+        if(!MysqlQuery(mysql,VIEWS_TABLE_CREATE)){
+            _log.fatal("MysqlInit", "mysql VIEWS_TABLE_CREATE failed!");
+            return nullptr;
+        }
+        _log.info("MysqlInit", "tables created");
         return mysql;
     }
     // 销毁mysql连接
     static void MysqlDestroy(MYSQL *mysql){
         if (mysql != nullptr) {
 			mysql_close(mysql);
-            _log.info("mysql del ","destory finished");
+            _log.info("MysqlDestroy","destory finished");
             return;
 		}
-        _log.warning("mysql del ","mysql pointer == nullptr");
+        _log.warning("MysqlDestroy","mysql pointer == nullptr");
     }
-    // 执行mysql语句，返回值为是否执行成功
-    static bool MysqlQuery(MYSQL *mysql, const std::string &sql)
-    {
-        int ret = mysql_query(mysql, sql.c_str());
-        // 语句执行失败
-		if (ret != 0) {
-            _log.error("mysql query","sql: %s",sql.c_str());
-            _log.error("mysql query","err[%u]: %s",mysql_errno(mysql),mysql_error(mysql));
-			return false;
-		}
-        _log.info("mysql query right","sql: %s",sql.c_str());
-		return true;
-    }
-    // 视频数据库
+
+    // 视频数据库类
     class VideoTb
     {
     private:
