@@ -2,6 +2,7 @@
 .tmp
 
 # 忽略可执行文件
+test
 vod-server
 *.log
 

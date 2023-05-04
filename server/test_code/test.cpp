@@ -6,24 +6,23 @@ using namespace std;
 // 文件类测试
 void FileTest()
 {
-    //如果文件路径不存在，创建文件
+	// 如果文件路径不存在，创建文件
 	vod::FileUtil("./www").CreateDirectory();
-    //写入测试内容
+	// 写入测试内容
 	vod::FileUtil("./www/index.html").SetContent("<html>124124</html>");
-    //尝试获取文件内容
+	// 尝试获取文件内容
 	std::string body;
 	vod::FileUtil("./www/index.html").GetContent(&body);
 	std::cout << body << std::endl;
-    // 获取文件大小
+	// 获取文件大小
 	std::cout << "file size: " << vod::FileUtil("./www/index.html").Size() << std::endl;
 }
-
 
 void JsonTest()
 {
 	Json::Value val;
 	val["姓名"] = "小张";
-	val["年龄"]= 18;
+	val["年龄"] = 18;
 	val["性别"] = "男";
 	val["成绩"].append(77.5);
 	val["成绩"].append(87.5);
@@ -31,35 +30,37 @@ void JsonTest()
 
 	std::string body;
 	vod::JsonUtil::Serialize(val, &body);
-	std::cout << body << std::endl << std::endl;
+	std::cout << body << std::endl
+			  << std::endl;
 
 	Json::Value stu;
 	vod::JsonUtil::UnSerialize(body, &stu);
 	std::cout << stu["姓名"].asString() << std::endl;
 	std::cout << stu["性别"].asString() << std::endl;
 	std::cout << stu["年龄"].asString() << std::endl;
-	for (auto &a : stu["成绩"]) {
+	for (auto &a : stu["成绩"])
+	{
 		std::cout << a.asFloat() << std::endl;
 	}
 }
 
 void LogTest()
 {
-    vod::Logger _log(vod::LogType::Info,2048);
-    _log.debug("test","%s","debug_Test");
-    _log.info("test","%s","this in info");
-    _log.warning("test","%s %d","this is warning",333);
-    _log.error("test","%s","this is err");
-    _log.fatal("test","%s","this is fatal!!!");
+	vod::Logger _log(vod::LogType::Info, 2048);
+	_log.debug("test", "%s", "debug_Test");
+	_log.info("test", "%s", "this in info");
+	_log.warning("test", "%s %d", "this is warning", 333);
+	_log.error("test", "%s", "this is err");
+	_log.fatal("test", "%s", "this is fatal!!!");
 }
 
 void LogErrTest()
 {
 	Json::Value stu;
 	std::string str;
-	//str = "{\"学习\":[\"语文\",\"EN\"]";//不合法的json字符串
-	vod::FileUtil("./test.json").GetContent(&str);//一个断尾的json文件
-	vod::JsonUtil::UnSerialize(str,&stu);//成功报错
+	// str = "{\"学习\":[\"语文\",\"EN\"]";//不合法的json字符串
+	vod::FileUtil("./test.json").GetContent(&str); // 一个断尾的json文件
+	vod::JsonUtil::UnSerialize(str, &stu);		   // 成功报错
 }
 
 void MysqlTest()
@@ -93,18 +94,74 @@ void MysqlTest()
 	// 									video["video"].asCString(),
 	// 									video["cover"].asCString());
 
-	testable.SelectVideoView("d41d3849",&video,true);
+	testable.SelectVideoView("d41d3849", &video, true);
 	testable.UpdateVideoUpDown("d41d3849");
-	testable.UpdateVideoUpDown("d41d3849",false);
+	testable.UpdateVideoUpDown("d41d3849", false);
+}
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <sqlite3.h>
+
+static int callback(void *NotUsed, int argc, char **argv, char **azColName)
+{
+	int i;
+	for (i = 0; i < argc; i++)
+	{
+		printf("%s = %s\n", azColName[i], argv[i] ? argv[i] : "NULL");
+	}
+	printf("\n");
+	return 0;
+}
+// sqlite3数据库打开测试
+void SqliteTest()
+{
+	sqlite3 *db;
+	char *zErrMsg = 0;
+	int rc;
+
+	rc = sqlite3_open("test.db", &db);
+
+	if (rc)
+	{
+		fprintf(stderr, "Can't open database: %s\n", sqlite3_errmsg(db));
+		exit(0);
+	}
+	else
+	{
+		fprintf(stderr, "Opened database successfully\n");
+	}
+	std::string sql = R"(CREATE TABLE tb_video(
+				id TEXT NOT NULL DEFAULT (substr((lower(hex(uuid()))),0,8)),
+				name TEXT,
+				info TEXT,
+				video TEXT,
+				cover TEXT,
+				insert_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+			);)";
+
+	/* Execute SQL statement */
+	rc = sqlite3_exec(db, sql.c_str(), callback, 0, &zErrMsg);
+	if (rc != SQLITE_OK)
+	{
+		fprintf(stderr, "SQL error: %s\n", zErrMsg);
+		sqlite3_free(zErrMsg);
+	}
+	else
+	{
+		fprintf(stdout, "Table created successfully\n");
+	}
+	sqlite3_close(db);
 }
 
 int main()
 {
-    //FileTest();
-    //JsonTest();
-    //LogTest();
-	//LogErrTest();
-    MysqlTest();
-	
+	// FileTest();
+	// JsonTest();
+	// LogTest();
+	// LogErrTest();
+	// MysqlTest();
+	SqliteTest();
+
 	return 0;
 }
