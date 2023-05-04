@@ -252,6 +252,7 @@ namespace vod
             //_mutex.unlock();
             int num_rows = mysql_num_rows(res);//获取结果集的行数
             if(num_rows==0){//一行都没有，空空如也
+                mysql_free_result(res);//释放结果集
                 _log.warning("Video SelectOne","no target id '%s' is found",video_id.c_str());
                 return false;
             }
@@ -349,6 +350,7 @@ namespace vod
             int num_rows=mysql_num_rows(res);//获取行数
             if(num_rows==0){
                 // 没有就插入一个
+                mysql_free_result(res);
                 _log.info("SelectVideoView","no target id '%s' is found",video_id.c_str());
                 #define INSERT_VIDEO_VIEW "insert into %s (id,up,down,view) values ('%s',0,0,1);"
                 sprintf((char*)sql.c_str(),INSERT_VIDEO_VIEW,_views_table.c_str(),video_id.c_str());
