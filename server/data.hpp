@@ -255,11 +255,11 @@ namespace vod
                 _log.warning("Video SelectOne","no target id '%s' is found",video_id.c_str());
                 return false;
             }
-            else if(num_rows>1)//id不唯一，大bug
-            {
-                _log.fatal("Video SelectOne","id '%s' more than once! num:%d",video_id.c_str(),num_rows);
-                return false;
-            }
+            // else if(num_rows>1)//id不唯一，大bug
+            // {
+            //     _log.fatal("Video SelectOne","id '%s' more than once! num:%d",video_id.c_str(),num_rows);
+            //     return false;
+            // }
             MYSQL_ROW row = mysql_fetch_row(res);
             // 这里是调用参数里面的对象的[]重载，所以需要解引用
             (*video)["id"] = video_id;
@@ -357,10 +357,10 @@ namespace vod
                 (*video_view)["view"] = 1;//这里新建的时候，代表用户已经点击进入视频页面了，所以初始值是1
                 return MysqlQuery(_mysql,sql);
             }
-            else if(num_rows>1){
-                _log.fatal("SelectVideoView","id '%s' more than once!",video_id.c_str());//id不唯一，更有问题了
-                return false;
-            }
+            // else if(num_rows>1){
+            //     _log.fatal("SelectVideoView","id '%s' more than once!",video_id.c_str());//id不唯一，更有问题了
+            //     return false;
+            // }
             MYSQL_ROW row = mysql_fetch_row(res);
             (*video_view)["up"] = atoi(row[1]);//全都要转成int
             (*video_view)["down"] = atoi(row[2]);
