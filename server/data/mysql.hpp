@@ -1,6 +1,6 @@
-#ifndef __MY_DATA__
-#define __MY_DATA__
-#include "utils.hpp"
+#ifndef __MY_DATA_MYSQL__
+#define __MY_DATA_MYSQL__
+#include "data.hpp"
 #include <mutex>
 #include <ctime>
 #include <cstdlib>
@@ -8,7 +8,6 @@
 
 namespace vod
 {
-#define TIME_DELETA 8 //东八区 
 #define CONF_FILEPATH "./config.json"//日志文件路径
 #define VEDIO_INFO_MAX_LEN 4096 //视频简介不能过长
 // 视频数据表
@@ -100,14 +99,14 @@ UNIQUE(id));"
     }
 
     // 视频数据库类
-    class VideoTb
+    class VideoTbMysql :public VideoTb
     {
     private:
         MYSQL *_mysql;     // 一个对象就是一个客户端，管理一张表
         std::mutex _mutex; // 使用C++的线程，而不直接使用linux的pthread
         std::string _video_table; // 视频表名称
         std::string _views_table; // 视频点赞信息表名称
-        static VideoTb* _vtb_ptr; // 单例类指针
+        static VideoTbMysql* _vtb_ptr; // 单例类指针
 
         //检查视频id是否符合规范
         bool check_video_id(const std::string& def_name,const std::string& video_id)
@@ -134,39 +133,39 @@ UNIQUE(id));"
         }
         
         // 完成mysql句柄初始化
-        VideoTb()
+        VideoTbMysql()
         {
             _mysql = MysqlInit(CONF_FILEPATH);
             //初始化失败直接abort
             if(_mysql ==nullptr){
-                _log.fatal("VideoTb init","mysql init failed | abort!");
+                _log.fatal("VideoTbMysql init","mysql init failed | abort!");
                 abort();
             }
             // 读取表名
             Json::Value conf;
             if(!FileUtil(CONF_FILEPATH).GetContent(&_video_table)){
-                _log.fatal("VideoTb init","table_name read err | abort!");
+                _log.fatal("VideoTbMysql init","table_name read err | abort!");
                 abort();
             }
             JsonUtil::UnSerialize(_video_table, &conf);
             _video_table = conf["mysql"]["table"]["video"].asString();
             _views_table = conf["mysql"]["table"]["views"].asString();
-            _log.info("VideoTb init","init success");
+            _log.info("VideoTbMysql init","init success");
         }
         // 取消拷贝构造和赋值重载
-        VideoTb(const VideoTb& _v) = delete;
-        VideoTb& operator==(const VideoTb& _v)= delete;
+        VideoTbMysql(const VideoTbMysql& _v) = delete;
+        VideoTbMysql& operator==(const VideoTbMysql& _v)= delete;
     public:
         // 释放msyql操作句柄
-        ~VideoTb(){
+        ~VideoTbMysql(){
             MysqlDestroy(_mysql);
         }
         // 获取单例(懒汉)
-        static VideoTb* GetInstance()
+        static VideoTbMysql* GetInstance()
         {
             if (_vtb_ptr == nullptr)
             {
-                _vtb_ptr = new VideoTb;
+                _vtb_ptr = new VideoTbMysql;
             }
             return _vtb_ptr;
         }
@@ -441,6 +440,6 @@ UNIQUE(id));"
         }
     };
     // 类外初始化为null
-    VideoTb* VideoTb::_vtb_ptr = nullptr;
+    VideoTbMysql* VideoTbMysql::_vtb_ptr = nullptr;
 }
 #endif

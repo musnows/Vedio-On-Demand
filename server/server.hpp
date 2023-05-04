@@ -1,7 +1,8 @@
 #ifndef __VOD_SERVER__
 #define __VOD_SERVER__
 #include "httplib.h"
-#include "data.hpp"
+#include "data/mysql.hpp"
+
 namespace vod
 {
 #define DEFAULT_SERVER_PORT 50000
@@ -293,7 +294,7 @@ namespace vod
         Server(size_t port = DEFAULT_SERVER_PORT)
             : _port(port)
         {
-            VideoTable = VideoTb::GetInstance();//获取单例
+            VideoTable = VideoTbMysql::GetInstance();//获取单例
             _log.info("server init","get instance of VideoTb");
             std::string tmp_str;
             Json::Value conf;
