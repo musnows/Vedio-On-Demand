@@ -38,4 +38,5 @@ gcc version 8.5.0 20210514 (Red Hat 8.5.0-4) (GCC)
 ### 3.ToDo
 
 - [ ] data.hpp 中的数据类进行单例封装
-- [ ] 提供sqlite3数据库选项
+- [ ] 提供 sqlite3 数据库选项
+- [ ] 提供 dockerfile 进行 docker 部署
