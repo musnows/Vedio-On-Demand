@@ -10,7 +10,7 @@ namespace vod
 #define DEFAULT_VEDIO_COVER "default.png"    // 默认视频封面
     // 为了方便访问这个对象，定义全局变量
     // 用大写方便标识
-    VideoTb VideoTable;
+    VideoTb* VideoTable; // 数据库类
     Json::Value Conf; // 服务器的配置文件（json）
     // 服务器端
     class Server
@@ -49,7 +49,7 @@ namespace vod
         {
             // 要先查询，判断是否有这个id（mysql执行语句的时候，id不存在并不会报错）
             Json::Value video;
-            if (!VideoTable.SelectOne(video_id, &video))
+            if (!VideoTable->SelectOne(video_id, &video))
             {
                 rsp.status = 404;
                 rsp.body = R"({"code":404, "message":"视频id不存在"})";
@@ -60,7 +60,6 @@ namespace vod
             return true;
         }
 
-    private:
         // 将前端发过来的请求指定对应的业务处理接口，转给后端的mysql进行处理
         // 说白了就是把http协议中请求的参数给提取出来，然后调用对应data.hpp中的函数
         // 并给客户端提供正确响应
@@ -125,7 +124,7 @@ namespace vod
             video_json["video"] = video_path;
             video_json["cover"] = image_path;
             // 注意json的键值不能出错，否则会抛出异常（异常处理太麻烦了）
-            if (!VideoTable.Insert(video_json))
+            if (!VideoTable->Insert(video_json))
                 return MysqlErrHandler("Server.Insert", rsp);
             // 上传成功
             // rsp.status = 200;
@@ -160,7 +159,7 @@ namespace vod
             // video["name"] = video_name;
             // video["info"] = video_info;
             JsonUtil::UnSerialize(req.body,&video);//反序列化
-            if (!VideoTable.Update(video_id, video))
+            if (!VideoTable->Update(video_id, video))
                 return MysqlErrHandler("Server.Update", rsp);
             // 更新成功
             rsp.status = 200;
@@ -180,13 +179,13 @@ namespace vod
             // 视频id存在，删除
             // 1.删除本地文件
             Json::Value video;
-            if (!VideoTable.SelectOne(video_id, &video))
+            if (!VideoTable->SelectOne(video_id, &video))
                 return MysqlErrHandler("Server.Delete", rsp);
             // 本地文件删除失败也不要紧，主要是得删除掉数据库中的数据
             FileUtil(Conf["root"].asString() + video["cover"].asString()).DeleteFile();
             FileUtil(Conf["root"].asString() + video["video"].asString()).DeleteFile();
             // 2.删除数据库信息
-            if (!VideoTable.Delete(video_id))
+            if (!VideoTable->Delete(video_id))
                 return MysqlErrHandler("Server.Delete", rsp);
             // 删除成功
             rsp.status = 200;
@@ -205,7 +204,7 @@ namespace vod
             if (!IsVideoExists("Server.GetOne", video_id, rsp))
                 return;
             Json::Value video;
-            if (!VideoTable.SelectOne(video_id, &video))
+            if (!VideoTable->SelectOne(video_id, &video))
                 return MysqlErrHandler("Server.GetOne", rsp);
 
             JsonUtil::Serialize(video, &rsp.body);
@@ -221,7 +220,7 @@ namespace vod
             if (!IsVideoExists("Server.GetOneView", video_id, rsp))
                 return;
             Json::Value video;
-            if (!VideoTable.SelectVideoView(video_id, &video,true))
+            if (!VideoTable->SelectVideoView(video_id, &video,true))
                 return MysqlErrHandler("Server.GetOneView", rsp);
 
             JsonUtil::Serialize(video, &rsp.body);
@@ -242,7 +241,7 @@ namespace vod
             Json::Value videos;
             if (!search_flag)
             {
-                if (!VideoTable.SelectAll(&videos))
+                if (!VideoTable->SelectAll(&videos))
                 {
                     return MysqlErrHandler("Server.GetAll",rsp);
                 }
@@ -250,7 +249,7 @@ namespace vod
             }
             else
             {
-                if (!VideoTable.SelectLike(search_key, &videos))
+                if (!VideoTable->SelectLike(search_key, &videos))
                 {
                     return MysqlErrHandler("Server.GetAll.Like",rsp);
                 }
@@ -268,7 +267,7 @@ namespace vod
             _log.info("Server.UpdateVideoUp", "video id recv! id: [%s]", video_id.c_str()); // 将id括起来可以看出来是否有空格
             if (!IsVideoExists("Server.UpdateVideoUp", video_id, rsp))
                 return;
-            if (!VideoTable.UpdateVideoUpDown(video_id,true))
+            if (!VideoTable->UpdateVideoUpDown(video_id,true))
                 return MysqlErrHandler("Server.UpdateVideoUp", rsp);
 
             rsp.body = R"({"code":0, "message":"更新点赞成功"})";
@@ -282,7 +281,7 @@ namespace vod
             _log.info("Server.UpdateVideoDown", "video id recv! id: [%s]", video_id.c_str()); // 将id括起来可以看出来是否有空格
             if (!IsVideoExists("Server.UpdateVideoDown", video_id, rsp))
                 return;
-            if (!VideoTable.UpdateVideoUpDown(video_id,false))
+            if (!VideoTable->UpdateVideoUpDown(video_id,false))
                 return MysqlErrHandler("Server.UpdateVideoDown", rsp);
 
             rsp.body = R"({"code":0, "message":"更新点踩成功"})";
@@ -294,6 +293,8 @@ namespace vod
         Server(size_t port = DEFAULT_SERVER_PORT)
             : _port(port)
         {
+            VideoTable = VideoTb::GetInstance();//获取单例
+            _log.info("server init","get instance of VideoTb");
             std::string tmp_str;
             Json::Value conf;
             if (!FileUtil(CONF_FILEPATH).GetContent(&tmp_str))

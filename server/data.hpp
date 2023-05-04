@@ -77,8 +77,9 @@ namespace vod
     private:
         MYSQL *_mysql;     // 一个对象就是一个客户端，管理一张表
         std::mutex _mutex; // 使用C++的线程，而不直接使用linux的pthread
-        std::string _video_table;// 视频表名称
+        std::string _video_table; // 视频表名称
         std::string _views_table; // 视频点赞信息表名称
+        static VideoTb* _vtb_ptr; // 单例类指针
 
         //检查视频id是否符合规范
         bool check_video_id(const std::string& def_name,const std::string& video_id)
@@ -103,7 +104,7 @@ namespace vod
             }
             return true;
         }
-    public:
+        
         // 完成mysql句柄初始化
         VideoTb()
         {
@@ -124,10 +125,24 @@ namespace vod
             _views_table = conf["mysql"]["table"]["views"].asString();
             _log.info("VideoTb init","init success");
         }
+        // 取消拷贝构造和赋值重载
+        VideoTb(const VideoTb& _v) = delete;
+        VideoTb& operator==(const VideoTb& _v)= delete;
+    public:
         // 释放msyql操作句柄
         ~VideoTb(){
             MysqlDestroy(_mysql);
         }
+        // 获取单例(懒汉)
+        static VideoTb* GetInstance()
+        {
+            if (_vtb_ptr == nullptr)
+            {
+                _vtb_ptr = new VideoTb;
+            }
+            return _vtb_ptr;
+        }
+
         // 新增-传入视频信息
         bool Insert(const Json::Value &video)
         {
@@ -395,5 +410,7 @@ namespace vod
             return MysqlQuery(_mysql,sql);
         }
     };
+    // 类外初始化为null
+    VideoTb* VideoTb::_vtb_ptr = nullptr;
 }
 #endif
