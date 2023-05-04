@@ -4,7 +4,7 @@
 int main()
 {
     // 打印日志
-    vod::_log.info("main","server run at %d",PORT);
+    vod::_log.info("main","server run at http://0.0.0.0:%d",PORT);
     vod::Server s(PORT);
     s.Run();// 启动服务器
     return 0;

@@ -141,6 +141,8 @@ struct LogTime{
                         _log_level[level],
                         _def_name,
                         _log_info.c_str());
+
+            fflush(out);//刷新缓冲区
         }
         // 获取日志时间参数
         std::string _getLogTime()
