@@ -1,10 +1,14 @@
 main:main.cpp ./server/
-	g++ main.cpp -o main-server -lmysqlclient -ljsoncpp -lpthread
+	g++ main.cpp -o vod-server -lmysqlclient -ljsoncpp -lpthread
+
+.PHONY:test
+test:
+	./vod-server
 
 .PHONY:run
 run:
-	./main-server
+	nohup ./vod-server >> server.log 2>&1 &
 
 .PHONY:clean
 clean:
-	rm main-server
+	rm vod-server

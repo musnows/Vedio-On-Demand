@@ -2,7 +2,8 @@
 .tmp
 
 # 忽略可执行文件
-main-server
+vod-server
+*.log
 
 # 忽略资源文件的路径
 # www/
