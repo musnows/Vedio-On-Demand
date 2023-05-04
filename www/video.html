@@ -289,8 +289,9 @@
                type: "put",
                context: this,
                success: function (result, status, xhr) {
+                  this.video_view.up ++;
                   alert("点赞成功");
-                  window.location.reload();
+                  //window.location.reload();
                }
             })
          },
@@ -300,8 +301,9 @@
                type: "put",
                context: this,
                success: function (result, status, xhr) {
+                  this.video_view.down ++;
                   alert("点踩成功");
-                  window.location.reload();
+                  //window.location.reload();
                }
             })
          }
