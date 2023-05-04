@@ -64,7 +64,7 @@ namespace vod
         // 语句执行失败
 		if (ret != 0) {
             _log.error("mysql query","sql: %s",sql.c_str());
-            _log.error("mysql query","err: %s",mysql_error(mysql));
+            _log.error("mysql query","err[%u]: %s",mysql_errno(mysql),mysql_error(mysql));
 			return false;
 		}
         _log.info("mysql query right","sql: %s",sql.c_str());
@@ -187,7 +187,7 @@ namespace vod
             MYSQL_RES *res = mysql_store_result(_mysql);
             if (res == nullptr) {
                 _mutex.unlock();
-                _log.error("Video SelectAll","mysql store result failed");
+                _log.error("Video SelectAll","mysql store result failed | err[%u]: %s",mysql_errno(_mysql),mysql_error(_mysql));
                 return false;
             }
             //_mutex.unlock();
@@ -228,7 +228,7 @@ namespace vod
             MYSQL_RES *res = mysql_store_result(_mysql);
             if (res == nullptr) {
                 _mutex.unlock();
-                _log.error("Video SelectOne","mysql store result failed");
+                _log.error("Video SelectOne","mysql store result failed | err[%u]: %s",mysql_errno(_mysql),mysql_error(_mysql));
                 return false;
             }
             //_mutex.unlock();
@@ -278,7 +278,7 @@ namespace vod
             MYSQL_RES *res = mysql_store_result(_mysql);
             if (res == nullptr) {
                 _mutex.unlock();
-                _log.error("Video SelectLike","mysql store result failed");
+                _log.error("Video SelectLike","mysql store result failed | err[%u]: %s",mysql_errno(_mysql),mysql_error(_mysql));
                 return false;
             }
             //_mutex.unlock();
@@ -319,7 +319,7 @@ namespace vod
             MYSQL_RES*res=mysql_store_result(_mysql);
             if(res==nullptr){
                 _mutex.unlock();
-                _log.error("SelectVideoView","mysql store result failed");
+                _log.error("SelectVideoView","mysql store result failed | err[%u]: %s",mysql_errno(_mysql),mysql_error(_mysql));
                 return false;
             }
             //_mutex.unlock();
