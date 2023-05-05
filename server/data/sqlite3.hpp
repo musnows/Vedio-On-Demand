@@ -24,6 +24,70 @@ up int NOT NULL DEFAULT 0,\
 down int NOT NULL DEFAULT 0,\
 view int NOT NULL DEFAULT 0);"
 
+    // 回调函数，留空 (因为执行插入/更新等操作时这个函数不会被调用)
+    static int SqliteCallback(void *NotUsed, int argc, char **argv, char **azColName)
+    {
+        _log.info("SqliteCallback","do nothing");
+        return 0;
+    }
+    // 执行sqlite3的语句
+    static bool SqliteQuery(sqlite3*db,const std::string& sql)
+    {
+        // 执行sql语句
+        char* zErrMsg;
+        int ret = sqlite3_exec(db, sql.c_str(), SqliteCallback, 0, &zErrMsg);
+        if (ret != SQLITE_OK)
+        {
+            _log.error("SqliteQuery.Err","sql: %s",sql.c_str());
+            _log.error("SqliteQuery.Err","err: %s",zErrMsg);
+            sqlite3_free(zErrMsg);
+            return false;
+        }
+        _log.info("SqliteQuery.Success","sql: %s",sql.c_str());
+		return true;
+    }
+
+    // 初始化sqlite3
+    static sqlite3 *SqliteInit(const std::string& conf_path)
+    {
+        sqlite3 * db;
+        //读取配置文件
+        std::string tmp_str;
+        Json::Value conf;
+        if(!FileUtil(conf_path).GetContent(&tmp_str)){
+            //保证读取配置文件不要出错
+            _log.fatal("SqliteInit","get config err");
+            return nullptr;
+        }
+        JsonUtil::UnSerialize(tmp_str, &conf);
+        // 打开数据库文件
+        if (sqlite3_open(conf["sql"]["database"].asCString(), &db))
+        {
+            _log.fatal("SqliteInit","can't open database: %s\n", sqlite3_errmsg(db));
+            return nullptr;
+        }
+        _log.info("SqliteInit","database open success");
+        // 创建两个数据表
+        if(!SqliteQuery(db,VIDEO_TABLE_CREATE)){
+            _log.fatal("SqliteInit", "sqlite VIDEO_TABLE_CREATE failed!");
+            return nullptr;
+        }
+        if(!SqliteQuery(db,VIEWS_TABLE_CREATE)){
+            _log.fatal("SqliteInit", "sqlite VIEWS_TABLE_CREATE failed!");
+            return nullptr;
+        }
+        _log.info("SqliteInit","tables create success");
+        return db;
+    }
+    // 销毁sqlite连接
+    static void SqliteDestroy(sqlite3 *db){
+        if (db != nullptr) {
+            sqlite3_close(db);
+            _log.info("SqliteDestroy","destory finished");
+            return;
+        }
+        _log.warning("SqliteDestroy","sqlite3 pointer == nullptr");
+    }
 
     // 视频数据库类
     class VideoTbSqlite :public VideoTb
@@ -38,13 +102,13 @@ view int NOT NULL DEFAULT 0);"
         // 完成mysql句柄初始化
         VideoTbSqlite()
         {
-            _mysql = MysqlInit(CONF_FILEPATH);
+            _db = SqliteInit(CONF_FILEPATH);
             //初始化失败直接abort
-            if(_mysql ==nullptr){
-                _log.fatal("VideoTbSqlite init","mysql init failed | abort!");
+            if(_db == nullptr){
+                _log.fatal("VideoTbSqlite init","sqlite init failed | abort!");
                 abort();
             }
-            // 读取表名
+            // 读取配置文件中的表名，赋值
             Json::Value conf;
             if(!FileUtil(CONF_FILEPATH).GetContent(&_video_table)){
                 _log.fatal("VideoTbSqlite init","table_name read err | abort!");
@@ -61,7 +125,7 @@ view int NOT NULL DEFAULT 0);"
     public:
         // 释放msyql操作句柄
         ~VideoTbSqlite(){
-            MysqlDestroy(_mysql);
+            SqliteDestroy(_db);
         }
         // 获取单例(懒汉)
         static VideoTbSqlite* GetInstance()
@@ -86,7 +150,7 @@ view int NOT NULL DEFAULT 0);"
                                     video["info"].asCString(),
                                     video["video"].asCString(),
                                     video["cover"].asCString());
-            return MysqlQuery(_mysql,sql);//执行语句
+            return SqliteQuery(_db,sql);//执行语句
         }
         // 修改-传入视频id和新的信息(暂时不支持修改视频封面和路径)
         bool Update(const std::string& video_id, const Json::Value &video)
@@ -100,7 +164,7 @@ view int NOT NULL DEFAULT 0);"
                                     video["name"].asCString(),
                                     video["info"].asCString(),
                                     video_id.c_str());
-            return MysqlQuery(_mysql,sql);//执行语句
+            return SqliteQuery(_db,sql);//执行语句
         }
         // 删除-传入视频id
         bool Delete(const std::string& video_id)
@@ -110,7 +174,7 @@ view int NOT NULL DEFAULT 0);"
             std::string sql;
             sql.resize(1024);//扩容
             sprintf((char*)sql.c_str(),DELETE_VIDEO,_video_table.c_str(),video_id.c_str());
-            return MysqlQuery(_mysql,sql);//执行语句
+            return SqliteQuery(_db,sql);//执行语句
         }
         // 查询所有-输出所有视频信息（视频列表）
         bool SelectAll(Json::Value *video_s)
@@ -124,7 +188,7 @@ view int NOT NULL DEFAULT 0);"
             // 加锁是为了保证同一时间只有一个执行流在进行查询操作，避免结果集丢失
             _mutex.lock();
             // 语句执行失败了
-            if (!MysqlQuery(_mysql, sql)) {
+            if (!SqliteQuery(_db, sql)) {
                 _mutex.unlock();
                 _log.error("Video SelectAll","query failed");
                 return false;
@@ -166,7 +230,7 @@ view int NOT NULL DEFAULT 0);"
             sprintf((char*)sql.c_str(),SELECT_ONE_VIDEO,_video_table.c_str(),video_id.c_str());
             _mutex.lock();
             // 语句执行失败了
-            if (!MysqlQuery(_mysql, sql)) {
+            if (!SqliteQuery(_db, sql)) {
                 _mutex.unlock();
                 _log.error("Video SelectOne","query failed");
                 return false;
@@ -218,7 +282,7 @@ view int NOT NULL DEFAULT 0);"
             sprintf((char*)sql.c_str(),SELECT_LIKE,_video_table.c_str(),key.c_str());
             _mutex.lock();
             // 语句执行失败了
-            if (!MysqlQuery(_mysql, sql)) {
+            if (!SqliteQuery(_db, sql)) {
                 _mutex.unlock();
                 _log.error("Video SelectLike","query failed");
                 return false;
@@ -260,7 +324,7 @@ view int NOT NULL DEFAULT 0);"
             #define SELECT_VIDEO_VIEW "select * from %s where id='%s';"
             sprintf((char*)sql.c_str(),SELECT_VIDEO_VIEW,_views_table.c_str(),video_id.c_str());
             _mutex.lock();
-            if(!MysqlQuery(_mysql,sql)){
+            if(!SqliteQuery(_db,sql)){
                 _mutex.unlock();
                 _log.error("SelectVideoView","query failed");
                 return false;
@@ -287,7 +351,7 @@ view int NOT NULL DEFAULT 0);"
                 (*video_view)["up"] = 0;//初始值都是0
                 (*video_view)["down"] = 0;
                 (*video_view)["view"] = 1;//这里新建的时候，代表用户已经点击进入视频页面了，所以初始值是1
-                return MysqlQuery(_mysql,sql);
+                return SqliteQuery(_db,sql);
             }
             // else if(num_rows>1){
             //     _log.fatal("SelectVideoView","id '%s' more than once!",video_id.c_str());//id不唯一，更有问题了
@@ -315,7 +379,7 @@ view int NOT NULL DEFAULT 0);"
             std::string sql;
             sql.resize(256);
             sprintf((char*)sql.c_str(),UPDATE_VIDEO_VIEW,_views_table.c_str(),video_view,video_id.c_str());
-            return MysqlQuery(_mysql,sql);
+            return SqliteQuery(_db,sql);
         }
         // up和down的更新
         // up_flag：true更新up / false更新down
@@ -339,7 +403,7 @@ view int NOT NULL DEFAULT 0);"
                 size_t value = video_view["down"].asUInt() + 1;
                 sprintf((char*)sql.c_str(),UPDATE_VIDEO_DOWN,_views_table.c_str(),value,video_id.c_str());
             }
-            return MysqlQuery(_mysql,sql);
+            return SqliteQuery(_db,sql);
         }
     };
     // 类外初始化为null
