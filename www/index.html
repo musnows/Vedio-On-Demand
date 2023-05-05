@@ -124,7 +124,7 @@
 											</div>
 											<div class="infor">
 												<h4>
-													<a class="title" href="#" v-cloak>{{video.name}}</a>
+													<a class="title" v-bind:href="'/video.html?id='+video.id" v-cloak>{{video.name}}</a>
 												</h4>
 												<span class="posts-txt" title="Posts from Channel"><i
 														class="fa fa-clock-o" aria-hidden="true"></i>{{video.insert_time}}</span>
