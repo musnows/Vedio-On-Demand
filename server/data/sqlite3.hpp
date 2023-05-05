@@ -10,7 +10,7 @@ namespace vod
 {
 namespace sqlite{
 // 视频数据表
-#define VIDEO_TABLE_CREATE "CREATE TABLE IF NOT EXISTS tb_video(\
+#define VIDEO_TABLE_CREATE_SQLITE "CREATE TABLE IF NOT EXISTS tb_video(\
 id TEXT(8) UNIQUE NOT NULL DEFAULT (lower((hex(randomblob(4))))),\
 name TEXT NOT NULL,\
 info TEXT,\
@@ -18,7 +18,7 @@ video TEXT NOT NULL,\
 cover TEXT NOT NULL,\
 insert_time TIMESTAMP DEFAULT (datetime('now', '+8 hours')));"
 // 视频点赞信息数据表
-#define VIEWS_TABLE_CREATE "create table IF NOT EXISTS tb_views(\
+#define VIEWS_TABLE_CREATE_SQLITE "create table IF NOT EXISTS tb_views(\
 id TEXT(8) NOT NULL,\
 up int NOT NULL DEFAULT 0,\
 down int NOT NULL DEFAULT 0,\
@@ -69,12 +69,12 @@ view int NOT NULL DEFAULT 0);"
         }
         _log.info("SqliteInit","database open success");
         // 创建两个数据表
-        if(!SqliteQuery(db,VIDEO_TABLE_CREATE)){
-            _log.fatal("SqliteInit", "sqlite VIDEO_TABLE_CREATE failed!");
+        if(!SqliteQuery(db,VIDEO_TABLE_CREATE_SQLITE)){
+            _log.fatal("SqliteInit", "sqlite VIDEO_TABLE_CREATE_SQLITE failed!");
             return nullptr;
         }
-        if(!SqliteQuery(db,VIEWS_TABLE_CREATE)){
-            _log.fatal("SqliteInit", "sqlite VIEWS_TABLE_CREATE failed!");
+        if(!SqliteQuery(db,VIEWS_TABLE_CREATE_SQLITE)){
+            _log.fatal("SqliteInit", "sqlite VIEWS_TABLE_CREATE_SQLITE failed!");
             return nullptr;
         }
         _log.info("SqliteInit","tables create success");
