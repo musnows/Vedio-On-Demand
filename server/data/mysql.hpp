@@ -64,11 +64,11 @@ UNIQUE(id));"
         }
         JsonUtil::UnSerialize(tmp_str, &conf);
         //通过配置文件读取mysql的配置项
-        if (mysql_real_connect(mysql, conf["mysql"]["host"].asCString(), 
-                                        conf["mysql"]["user"].asCString(), 
-                                        conf["mysql"]["passwd"].asCString(), 
-                                        conf["mysql"]["database"].asCString(), 
-                                        conf["mysql"]["port"].asUInt(), 
+        if (mysql_real_connect(mysql, conf["sql"]["mysql"]["host"].asCString(), 
+                                        conf["sql"]["mysql"]["user"].asCString(), 
+                                        conf["sql"]["mysql"]["passwd"].asCString(), 
+                                        conf["sql"]["database"].asCString(), 
+                                        conf["sql"]["mysql"]["port"].asUInt(), 
                                         nullptr, 0) == nullptr)
         {
             _log.fatal("MysqlInit", "mysql server connect failed!");
@@ -148,8 +148,8 @@ UNIQUE(id));"
                 abort();
             }
             JsonUtil::UnSerialize(_video_table, &conf);
-            _video_table = conf["mysql"]["table"]["video"].asString();
-            _views_table = conf["mysql"]["table"]["views"].asString();
+            _video_table = conf["sql"]["table"]["video"].asString();
+            _views_table = conf["sql"]["table"]["views"].asString();
             _log.info("VideoTbMysql init","init success");
         }
         // 取消拷贝构造和赋值重载
