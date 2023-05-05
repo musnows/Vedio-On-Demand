@@ -7,7 +7,7 @@
    <meta name="description" content="">
    <meta name="author" content="OrcasThemes">
    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
-   <title></title>
+   <title>{{ video.name }}</title>
    <!-- Bootstrap core CSS -->
    <link href="css/bootstrap.css" rel="stylesheet">
    <!-- Custom styles for this template -->
@@ -41,6 +41,10 @@
 
 <body>
    <div id="myapp">
+      <!-- title -->
+      <div id="myapp">
+         <input type="text" v-model="video.name">
+       </div>
       <!-- SINGLE VIDEO -->
       <div id="single-video" class="container-fluid standard-bg">
          <!-- HEADER -->
@@ -308,7 +312,15 @@
                }
             })
          }
-      }
+      },
+      watch: {
+         'video': {
+           deep: true,
+           handler: function(newVal, oldVal) {
+             document.title = newVal.name + " | 视频点播系统";
+           }
+         }
+       }
    });
    app.get_video();
    app.get_video_view();
