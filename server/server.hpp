@@ -17,6 +17,9 @@ namespace vod
 #define DEFAULT_VEDIO_INFO "这里什么都没有~" // 默认视频简介
 #define DEFAULT_VEDIO_COVER "default.png"    // 默认视频封面
 
+    VideoTb* VideoTable; // 数据库类 父类指针
+    Json::Value SvConf;  // 服务器的配置文件，因为服务器内函数都是static函数，必须放在类外头
+
     // 检查端口是否被使用，被使用返回true
     bool IsPortUsed(size_t port) {
         int sock = socket(AF_INET, SOCK_STREAM, 0);
@@ -37,9 +40,6 @@ namespace vod
         return bind_result != 0; 
     }
 
-    // 为了方便访问这个对象，定义全局变量，用大写方便标识
-    VideoTb* VideoTable; // 数据库类
-    Json::Value Conf; // 服务器的配置文件（json）
     // 服务器端
     class Server
     {
@@ -123,11 +123,11 @@ namespace vod
                 _log.warning("Server.Insert", "empty video info, using default");
             }
             // 拼接视频路径
-            std::string root = Conf["root"].asString();
+            std::string root = SvConf["root"].asString();
             // 视频名中包含时间和视频文件的名字，对于本项目而言，安秒记录的时间已经能保证视频文件路径的唯一性了
             // 如果是请求量更大的项目，可以考虑使用毫秒级时间戳，或视频文件的md5字符串作为视频的路径名
-            std::string video_path = Conf["video_root"].asString() + GetTimeStr(NAME_TIME_FORMAT) + video.filename;
-            std::string image_path = Conf["image_root"].asString() + GetTimeStr(NAME_TIME_FORMAT) + image.filename;
+            std::string video_path = SvConf["video_root"].asString() + GetTimeStr(NAME_TIME_FORMAT) + video.filename;
+            std::string image_path = SvConf["image_root"].asString() + GetTimeStr(NAME_TIME_FORMAT) + image.filename;
             // 将文件写入path
             if (!FileUtil(root + video_path).SetContent(video.content))
             {
@@ -210,8 +210,8 @@ namespace vod
             if (!VideoTable->SelectOne(video_id, &video))
                 return MysqlErrHandler("Server.Delete", rsp);
             // 本地文件删除失败也不要紧，主要是得删除掉数据库中的数据
-            FileUtil(Conf["root"].asString() + video["cover"].asString()).DeleteFile();
-            FileUtil(Conf["root"].asString() + video["video"].asString()).DeleteFile();
+            FileUtil(SvConf["root"].asString() + video["cover"].asString()).DeleteFile();
+            FileUtil(SvConf["root"].asString() + video["video"].asString()).DeleteFile();
             // 2.删除数据库信息
             if (!VideoTable->Delete(video_id))
                 return MysqlErrHandler("Server.Delete", rsp);
@@ -330,7 +330,7 @@ namespace vod
                 abort();
             }
             JsonUtil::UnSerialize(tmp_str, &conf);
-            Conf = conf["web"]; // 赋值web的json格式给服务器，作为服务器配置
+            SvConf = conf["web"]; // 赋值web的json格式给服务器，作为服务器配置
             // 根据配置文件中的选择，实例化对应的单例
             if(conf["sql"]["used"].asString() == "mysql"){
                 VideoTable = mysql::VideoTbMysql::GetInstance();//获取单例
@@ -347,15 +347,15 @@ namespace vod
         bool Run()
         {
             // 1.创建本地的资源文件夹
-            FileUtil(Conf["root"].asString()).CreateDirectory(); // 创建根目录文件夹
-            std::string root = Conf["root"].asString();
-            std::string video_real_path = root + Conf["video_root"].asString(); // ./www/video/
+            FileUtil(SvConf["root"].asString()).CreateDirectory(); // 创建根目录文件夹
+            std::string root = SvConf["root"].asString();
+            std::string video_real_path = root + SvConf["video_root"].asString(); // ./www/video/
             FileUtil(video_real_path).CreateDirectory();                        // 创建文件夹
-            std::string image_real_path = root + Conf["image_root"].asString(); // ./www/image/
+            std::string image_real_path = root + SvConf["image_root"].asString(); // ./www/image/
             FileUtil(image_real_path).CreateDirectory();
             // 2.调用httplib的接口，映射服务器表
             // 2.1 设置静态资源根目录
-            _srv.set_mount_point("/", Conf["root"].asString());
+            _srv.set_mount_point("/", SvConf["root"].asString());
             // 2.2 添加请求-处理函数映射关系
             //  正则匹配
             //  获取视频的点赞点踩信息，这个应该放在上面避免view被下方其他正则捕获
