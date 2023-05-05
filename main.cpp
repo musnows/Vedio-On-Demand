@@ -3,17 +3,13 @@
 
 int main()
 {
-    try{
-        // 打印日志
-        printf("\n");
-        vod::_log.info("main","server run at http://0.0.0.0:%d",PORT);
-        // 服务器对象
-        vod::Server s(PORT);
-        s.Run();// 启动服务器
-    }
-    catch(...)
-    {
-        vod::_log.fatal("main","server run failed!");
+    // 打印日志
+    printf("\n");
+    vod::_log.info("main","server run at http://0.0.0.0:%d",PORT);
+    // 服务器对象
+    vod::Server s(PORT);
+    if(!s.Run()){// 启动服务器
+        vod::_log.fatal("main","server run failed! main exit");
         return -1;
     }
 

@@ -3,14 +3,40 @@
 #include "httplib.h"
 #include "data/mysql.hpp"
 
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <unistd.h>
+
 namespace vod
 {
 #define DEFAULT_SERVER_PORT 50000
 #define NAME_TIME_FORMAT "%y%m%d%H%M%S"      // 给文件命名时所用的时间格式
 #define DEFAULT_VEDIO_INFO "这里什么都没有~" // 默认视频简介
 #define DEFAULT_VEDIO_COVER "default.png"    // 默认视频封面
-    // 为了方便访问这个对象，定义全局变量
-    // 用大写方便标识
+
+    // 检查端口是否被使用，被使用返回true
+    bool IsPortUsed(size_t port) {
+        int sock = socket(AF_INET, SOCK_STREAM, 0);
+        if (sock < 0) {
+            _log.fatal("PortCheck","create socket err");
+            return true; // error
+        }
+        // 创建一个socket，判断是否被绑定
+        struct sockaddr_in server_addr {};
+        memset(&server_addr, 0, sizeof(server_addr));
+        server_addr.sin_family = AF_INET;
+        server_addr.sin_addr.s_addr = htonl(INADDR_ANY);
+        server_addr.sin_port = htons(port);
+        // 绑定测试
+        int bind_result = bind(sock, (struct sockaddr *) &server_addr, sizeof(server_addr));
+        close(sock);
+        // 如果返回值不为0，代表端口已经被使用
+        return bind_result != 0; 
+    }
+
+    // 为了方便访问这个对象，定义全局变量，用大写方便标识
     VideoTb* VideoTable; // 数据库类
     Json::Value Conf; // 服务器的配置文件（json）
     // 服务器端
@@ -334,6 +360,11 @@ namespace vod
             _srv.Get("/video", GetAll);
             _srv.Post("/video", Insert);
             // 3.指定端口，启动服务器
+            //   绑定之前，先检查端口是否被使用
+            if(IsPortUsed(_port)){
+                _log.fatal("server run","port %u already been used!",_port);
+                return false;
+            }
             //   这里必须用0.0.0.0，否则其他设备无法访问
             _srv.listen("0.0.0.0", _port);
             return true;
