@@ -61,7 +61,8 @@ view int NOT NULL DEFAULT 0);"
         }
         JsonUtil::UnSerialize(tmp_str, &conf);
         // 打开数据库文件
-        if (sqlite3_open(conf["sql"]["database"].asCString(), &db))
+        tmp_str = conf["sql"]["database"].asString()+".db";
+        if (sqlite3_open(tmp_str.c_str(), &db))
         {
             _log.fatal("SqliteInit","can't open database: %s\n", sqlite3_errmsg(db));
             return nullptr;
@@ -186,39 +187,38 @@ view int NOT NULL DEFAULT 0);"
             // 这里加锁是为了保证结果集能被正常报错（并不是防止修改原子性问题,mysql本身就已经维护了原子性）
             // 下方执行语句后，如果不保存结果集 而又执行一次搜索语句，之前搜索的结果就会丢失
             // 加锁是为了保证同一时间只有一个执行流在进行查询操作，避免结果集丢失
+            bool ret_status = true;//返回值
+            char **pazResult = nullptr,*errMsg; // 二维指针数组，存储查询结果
+            int nRow = 0, nColumn = 0;      // 获得查询结果的行数和列数
             _mutex.lock();
-            // 语句执行失败了
-            if (!SqliteQuery(_db, sql)) {
-                _mutex.unlock();
-                _log.error("Video SelectAll","query failed");
-                return false;
+            if(sqlite3_get_table(_db,sql.c_str(), &pazResult, &nRow, &nColumn, &errMsg) != SQLITE_OK)
+            {
+                _log.error("Video SelectAll","sqlite3 get table failed! | err: %s",errMsg);
+                ret_status = false;
             }
-            // 保存结果集到本地
-            MYSQL_RES *res = mysql_store_result(_mysql);
-            if (res == nullptr) {
-                mysql_free_result(res);//释放结果集
-                _mutex.unlock();
-                _log.error("Video SelectAll","mysql store result failed | err[%u]: %s",mysql_errno(_mysql),mysql_error(_mysql));
-                return false;
+            else
+            {
+                int index = nColumn;//从第二列开始，跳过第一行（第一行都是字段名）
+                for (int i = 0; i < nRow; i++)
+                {
+                    Json::Value video;//单个视频
+                    for (int j = 0; j < nColumn; j++)
+                    {
+                        // 前nColumn个数据都是字段名，所以可以用 pazResult[j] 来作为字段名
+                        video[pazResult[j]] = pazResult[index]; // 存入数据
+                        index++;
+                    }
+                    // json list
+                    video_s->append(video);
+                    
+                }
+                _log.info("Video SelectAll","select all finished");
             }
-            //_mutex.unlock();
-            int num_rows = mysql_num_rows(res);//获取结果集的行数
-            for (int i = 0; i < num_rows; i++) {
-                MYSQL_ROW row = mysql_fetch_row(res);//获取每一行的列数
-                Json::Value video;
-                video["id"] = row[0];
-                video["name"] = row[1];
-                video["info"] = row[2];
-                video["video"] = row[3];
-                video["cover"] = row[4];
-                video["insert_time"] = row[5]; //mysql中存放的就是可读时间 （其实存时间戳更好）
-                //json list
-                video_s->append(video);
-            }
-            mysql_free_result(res);//释放结果集
+            sqlite3_free_table(pazResult);
+            sqlite3_free(errMsg);
             _mutex.unlock();
-            _log.info("Video SelectAll","select all finished");
-            return true;
+            
+            return ret_status;
         }
         // 查询单个-输入视频id，输出信息
         bool SelectOne(const std::string& video_id, Json::Value *video)
@@ -228,45 +228,36 @@ view int NOT NULL DEFAULT 0);"
             std::string sql;
             sql.resize(512);
             sprintf((char*)sql.c_str(),SELECT_ONE_VIDEO,_video_table.c_str(),video_id.c_str());
+            // 开始查询
+            bool ret_status = true;//返回值
+            char **pazResult = nullptr,*errMsg; // 二维指针数组，存储查询结果
+            int nRow = 0, nColumn = 0;      // 获得查询结果的行数和列数
             _mutex.lock();
-            // 语句执行失败了
-            if (!SqliteQuery(_db, sql)) {
-                _mutex.unlock();
-                _log.error("Video SelectOne","query failed");
-                return false;
+            if(sqlite3_get_table(_db,sql.c_str(), &pazResult, &nRow, &nColumn, &errMsg) != SQLITE_OK)
+            {
+                _log.error("Video SelectOne","sqlite3 get table failed! err: %s",errMsg);
+                ret_status = false;
             }
-            // 保存结果集到本地
-            MYSQL_RES *res = mysql_store_result(_mysql);
-            if (res == nullptr) {
-                mysql_free_result(res);//释放结果集
-                _mutex.unlock();
-                _log.error("Video SelectOne","mysql store result failed | err[%u]: %s",mysql_errno(_mysql),mysql_error(_mysql));
-                return false;
+            else
+            {
+                int index = nColumn;//从第二列开始，跳过第一行（第一行都是字段名）
+                for (int i = 0; i < nRow; i++)
+                {
+                    for (int j = 0; j < nColumn; j++)
+                    {
+                        // 前nColumn个数据都是字段名，所以可以用 pazResult[j] 来作为字段名
+                        (*video)[pazResult[j]] = pazResult[index]; // 存入数据
+                        index++;
+                    }
+                    
+                }
+                _log.info("Video SelectOne","id '%s' found",video_id.c_str());
             }
-            //_mutex.unlock();
-            int num_rows = mysql_num_rows(res);//获取结果集的行数
-            if(num_rows==0){//一行都没有，空空如也
-                mysql_free_result(res);//释放结果集
-                _log.warning("Video SelectOne","no target id '%s' is found",video_id.c_str());
-                return false;
-            }
-            // else if(num_rows>1)//id不唯一，大bug
-            // {
-            //     _log.fatal("Video SelectOne","id '%s' more than once! num:%d",video_id.c_str(),num_rows);
-            //     return false;
-            // }
-            MYSQL_ROW row = mysql_fetch_row(res);
-            // 这里是调用参数里面的对象的[]重载，所以需要解引用
-            (*video)["id"] = video_id;
-            (*video)["name"] = row[1];
-            (*video)["info"] = row[2];
-            (*video)["video"] = row[3];
-            (*video)["cover"] = row[4];
-            (*video)["insert_time"] = row[5];
-            mysql_free_result(res);
+            sqlite3_free_table(pazResult);
+            sqlite3_free(errMsg);
             _mutex.unlock();
-            _log.info("Video SelectOne","id '%s' found",video_id.c_str());
-            return true;
+            
+            return ret_status;
         }
         // 模糊匹配-输入名称关键字，输出视频信息
         bool SelectLike(const std::string &key, Json::Value *video_s)
@@ -280,38 +271,37 @@ view int NOT NULL DEFAULT 0);"
             std::string sql;
             sql.resize(512+key.size());
             sprintf((char*)sql.c_str(),SELECT_LIKE,_video_table.c_str(),key.c_str());
+            // 开始查询
+            bool ret_status = true;//返回值
+            char **pazResult = nullptr,*errMsg; // 二维指针数组，存储查询结果
+            int nRow = 0, nColumn = 0;      // 获得查询结果的行数和列数
             _mutex.lock();
-            // 语句执行失败了
-            if (!SqliteQuery(_db, sql)) {
-                _mutex.unlock();
-                _log.error("Video SelectLike","query failed");
-                return false;
+            if(sqlite3_get_table(_db,sql.c_str(), &pazResult, &nRow, &nColumn, &errMsg) != SQLITE_OK)
+            {
+                _log.error("Video SelectAll","sqlite3 get table failed! err: %s",errMsg);
+                ret_status = false; //结果错误（不直接退出，在后方统一解锁和返回值）
             }
-            // 保存结果集到本地
-            MYSQL_RES *res = mysql_store_result(_mysql);
-            if (res == nullptr) {
-                mysql_free_result(res);//释放结果集
-                _mutex.unlock();
-                _log.error("Video SelectLike","mysql store result failed | err[%u]: %s",mysql_errno(_mysql),mysql_error(_mysql));
-                return false;
+            else
+            {
+                int index = nColumn;//从第二列开始，跳过第一行（第一行都是字段名）
+                for (int i = 0; i < nRow; i++)
+                {
+                    Json::Value video;//单个视频
+                    for (int j = 0; j < nColumn; j++)
+                    {
+                        // 前nColumn个数据都是字段名，所以可以用 pazResult[j] 来作为字段名
+                        video[pazResult[j]] = pazResult[index]; // 存入数据
+                        index++;
+                    }
+                    // json list
+                    video_s->append(video);
+                }
+                _log.info("Video SelectLike","select like '%s' finished",key.c_str());//key不会过长
             }
-            //_mutex.unlock();
-            int num_rows = mysql_num_rows(res);//获取结果集的行数
-            for (int i = 0; i < num_rows; i++) {
-                MYSQL_ROW row = mysql_fetch_row(res);//获取每一行的列数
-                Json::Value video;
-                video["id"] = row[0];
-                video["name"] = row[1];
-                video["info"] = row[2];
-                video["video"] = row[3];
-                video["cover"] = row[4];
-                //json list
-                video_s->append(video);
-            }
-            mysql_free_result(res);//释放结果集
+            sqlite3_free_table(pazResult);
+            sqlite3_free(errMsg);
             _mutex.unlock();
-            _log.info("Video SelectLike","select like '%s' finished",key.c_str());//key不会过长
-            return true;
+            return ret_status;
         }
         // 查询视频的view（点击量 点赞等等信息）
         // update_view 是否需要更新view计数器
@@ -323,53 +313,59 @@ view int NOT NULL DEFAULT 0);"
             // 先查询再插入
             #define SELECT_VIDEO_VIEW "select * from %s where id='%s';"
             sprintf((char*)sql.c_str(),SELECT_VIDEO_VIEW,_views_table.c_str(),video_id.c_str());
+            size_t new_view = 0;// 新的观看量
+            (*video_view)["id"] = video_id; // 先统一设置id
+            // 开始查询
+            bool ret_status = true,query_ret = true;//返回值
+            char **pazResult = nullptr,*errMsg; // 二维指针数组，存储查询结果
+            int nRow = 0, nColumn = 0;      // 获得查询结果的行数和列数
             _mutex.lock();
-            if(!SqliteQuery(_db,sql)){
-                _mutex.unlock();
-                _log.error("SelectVideoView","query failed");
-                return false;
+            if(sqlite3_get_table(_db,sql.c_str(), &pazResult, &nRow, &nColumn, &errMsg) != SQLITE_OK)
+            {
+                _log.error("Video SelectOne","sqlite3 get table failed! err: %s",errMsg);
+                ret_status = false;
             }
-            // 保存结果集到本地
-            MYSQL_RES*res=mysql_store_result(_mysql);
-            if(res==nullptr){
-                mysql_free_result(res);//释放结果集
-                _mutex.unlock();
-                _log.error("SelectVideoView","mysql store result failed | err[%u]: %s",mysql_errno(_mysql),mysql_error(_mysql));
-                return false;
+            else
+            {   // 判断情况
+                if(nRow == 0)// 没有找到，创建一个
+                {
+                    _log.info("SelectVideoView","no target id '%s' is found",video_id.c_str());
+                    #define INSERT_VIDEO_VIEW "insert into %s (id,up,down,view) values ('%s',0,0,1);"
+                    sprintf((char*)sql.c_str(),INSERT_VIDEO_VIEW,_views_table.c_str(),video_id.c_str());
+                    (*video_view)["up"] = 0;//初始值都是0
+                    (*video_view)["down"] = 0;
+                    (*video_view)["view"] = 1;//这里新建的时候，代表用户已经点击进入视频页面了，所以初始值是1
+                    query_ret = SqliteQuery(_db,sql);
+                }
+                else // 找到了，筛选数据
+                {   
+                    int index = nColumn + 1 ;//从第二列第二个开始，跳过第一行和第二行的id字段
+                    // j从1开始，跳过第一个id字段
+                    for (int j = 1; j < nColumn; j++)
+                    {
+                        // 只要不是id的数据，都需要改成int类型
+                        // 前nColumn个数据都是字段名，所以可以用 pazResult[j] 来作为字段名
+                        (*video_view)[pazResult[j]] = atoi(pazResult[index]);
+                        // view的数据提取，需要+1
+                        if(!strcmp(pazResult[j],"view")){
+                            new_view = atoi(pazResult[index]) +1;
+                            (*video_view)[pazResult[j]] = new_view;
+                        }
+                        index++;
+                    }
+                    _log.info("SelectVideoView","id '%s' found",video_id.c_str());
+                }
             }
-            //_mutex.unlock();
-            // 这里是调用参数里面的对象的[]重载，所以需要解引用
-            // 先都设置一下返回值里面的视频id
-            (*video_view)["id"] = video_id;
-            int num_rows=mysql_num_rows(res);//获取行数
-            if(num_rows==0){
-                // 没有就插入一个
-                mysql_free_result(res);
-                _log.info("SelectVideoView","no target id '%s' is found",video_id.c_str());
-                #define INSERT_VIDEO_VIEW "insert into %s (id,up,down,view) values ('%s',0,0,1);"
-                sprintf((char*)sql.c_str(),INSERT_VIDEO_VIEW,_views_table.c_str(),video_id.c_str());
-                (*video_view)["up"] = 0;//初始值都是0
-                (*video_view)["down"] = 0;
-                (*video_view)["view"] = 1;//这里新建的时候，代表用户已经点击进入视频页面了，所以初始值是1
-                return SqliteQuery(_db,sql);
-            }
-            // else if(num_rows>1){
-            //     _log.fatal("SelectVideoView","id '%s' more than once!",video_id.c_str());//id不唯一，更有问题了
-            //     return false;
-            // }
-            MYSQL_ROW row = mysql_fetch_row(res);
-            (*video_view)["up"] = atoi(row[1]);//全都要转成int
-            (*video_view)["down"] = atoi(row[2]);
-            size_t new_view = atoi(row[3])+1;
-            (*video_view)["view"] = new_view ; // 返回之后需要调用inset再给view+1，所以这里返回值就直接+1了
-            mysql_free_result(res);
+            sqlite3_free_table(pazResult);
+            sqlite3_free(errMsg);
             _mutex.unlock();
-            _log.info("SelectVideoView","id '%s' found",video_id.c_str());
+            // 创建表失败了，直接返回
+            if(!query_ret)return false;
             // 给view+1
             if(update_view && !UpdateVideoView(video_id,new_view)){
                 _log.error("SelectVideoView","id '%s' view update false | %d",video_id.c_str(),new_view);
             }
-            return true;
+            return ret_status;
         }
         // view数量+1，传入的view应该是`更新后`的值
         bool UpdateVideoView(const std::string& video_id,size_t video_view){

@@ -164,33 +164,33 @@ void SqliteTest()
 	}
 
 	// 查询
-	// Json::Value videos;
-	// char **pazResult; /* 二维指针数组，存储查询结果 */
-	// /* 获得查询结果的行数和列数 */
-	// int nRow = 0, nColumn = 0;
-	// sqlite3_get_table(db, "SELECT * FROM tb_video;", &pazResult, &nRow, &nColumn, NULL);
+	Json::Value videos;
+	char **pazResult; /* 二维指针数组，存储查询结果 */
+	/* 获得查询结果的行数和列数 */
+	int nRow = 0, nColumn = 0;
+	sqlite3_get_table(db, "SELECT * FROM tb_video;", &pazResult, &nRow, &nColumn, NULL);
 
-	// std::cout << nRow <<" " <<  nColumn << std::endl;
-	// int index = nColumn;//从第二列开始，跳过第一行（第一行都是字段名）
-	// for (int i = 0; i < nRow; i++)
-	// {
-	// 	Json::Value video;
-	// 	for (int j = 0; j < nColumn; j++)
-	// 	{
-	// 		// 前nColumn个数据都是字段名，所以可以用 pazResult[j] 来打印
-	// 		printf("%-8s : %-8s\n", pazResult[j],pazResult[index]);
-	// 		video[pazResult[j]] = pazResult[index] ?pazResult[index] : "NULL"; // 存入数据
-	// 		index++;
-	// 	}
-	// 	// json list
-	// 	videos.append(video);
-	// }
-
+	std::cout << nRow <<" " <<  nColumn << std::endl;
+	int index = nColumn;//从第二列开始，跳过第一行（第一行都是字段名）
+	for (int i = 0; i < nRow; i++)
+	{
+		Json::Value video;
+		for (int j = 0; j < nColumn; j++)
+		{
+			// 前nColumn个数据都是字段名，所以可以用 pazResult[j] 来打印
+			printf("%-8s : %-8s\n", pazResult[j],pazResult[index]);
+			video[pazResult[j]] = pazResult[index] ?pazResult[index] : "NULL"; // 存入数据
+			index++;
+		}
+		// json list
+		videos.append(video);
+	}
+	sqlite3_free_table(pazResult);
 	// std::string json_str;
 	// vod::JsonUtil::Serialize(videos, &json_str);
 	// std::cout << json_str << std::endl;
 	
-	// sqlite3_free_table(pazResult);
+	
 
 	sqlite3_close(db);
 }

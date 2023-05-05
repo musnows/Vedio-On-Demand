@@ -5,6 +5,7 @@
 test
 vod-server
 *.log
+*.db
 
 # 忽略资源文件的路径
 # www/

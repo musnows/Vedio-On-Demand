@@ -2,6 +2,7 @@
 #define __VOD_SERVER__
 #include "httplib.h"
 #include "data/mysql.hpp"
+#include "data/sqlite3.hpp"
 
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -320,8 +321,6 @@ namespace vod
         Server(size_t port = DEFAULT_SERVER_PORT)
             : _port(port)
         {
-            VideoTable = mysql::VideoTbMysql::GetInstance();//获取单例
-            _log.info("server init","get instance of VideoTb");
             std::string tmp_str;
             Json::Value conf;
             if (!FileUtil(CONF_FILEPATH).GetContent(&tmp_str))
@@ -332,6 +331,16 @@ namespace vod
             }
             JsonUtil::UnSerialize(tmp_str, &conf);
             Conf = conf["web"]; // 赋值web的json格式给服务器，作为服务器配置
+            // 根据配置文件中的选择，实例化对应的单例
+            if(conf["sql"]["used"].asString() == "mysql"){
+                VideoTable = mysql::VideoTbMysql::GetInstance();//获取单例
+                _log.info("server init","get instance of VideoTbMysql");
+            }
+            //else if(conf["sql"]["used"].asString().find("sqlite")!=std::string::npos){
+            else{// 如果没有选择mysql就用sqlite
+                VideoTable = sqlite::VideoTbSqlite::GetInstance();//获取单例
+                _log.info("server init","get instance of VideoTbSqlite");
+            }
             _log.info("server init", "init finished");
         }
         // 建立请求与处理函数的映射关系，设置静态资源根目录，启动服务器，

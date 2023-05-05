@@ -1,5 +1,5 @@
 main:main.cpp ./server/
-	g++ main.cpp -o vod-server -lmysqlclient -ljsoncpp -lpthread
+	g++ main.cpp -o vod-server -lmysqlclient -ljsoncpp -lpthread -lsqlite3
 
 .PHONY:test
 test:
