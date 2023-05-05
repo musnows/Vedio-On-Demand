@@ -48,20 +48,11 @@ view int NOT NULL DEFAULT 0);"
     }
 
     // 初始化sqlite3
-    static sqlite3 *SqliteInit(const std::string& conf_path)
+    static sqlite3 *SqliteInit(const Json::Value& sql_conf)
     {
         sqlite3 * db;
-        //读取配置文件
-        std::string tmp_str;
-        Json::Value conf;
-        if(!FileUtil(conf_path).GetContent(&tmp_str)){
-            //保证读取配置文件不要出错
-            _log.fatal("SqliteInit","get config err");
-            return nullptr;
-        }
-        JsonUtil::UnSerialize(tmp_str, &conf);
         // 打开数据库文件
-        tmp_str = conf["sql"]["database"].asString()+".db";
+        std::string tmp_str = sql_conf["database"].asString()+".db";
         if (sqlite3_open(tmp_str.c_str(), &db))
         {
             _log.fatal("SqliteInit","can't open database: %s\n", sqlite3_errmsg(db));
@@ -95,29 +86,17 @@ view int NOT NULL DEFAULT 0);"
     {
     private:
         sqlite3 *_db;     // 一个对象就是一个客户端，管理一张表
-        std::mutex _mutex; // 使用C++的线程，而不直接使用linux的pthread
-        std::string _video_table; // 视频表名称
-        std::string _views_table; // 视频点赞信息表名称
         static VideoTbSqlite* _vtb_ptr; // 单例类指针
         
         // 完成mysql句柄初始化
         VideoTbSqlite()
         {
-            _db = SqliteInit(CONF_FILEPATH);
+            _db = SqliteInit(_sql_conf);
             //初始化失败直接abort
             if(_db == nullptr){
                 _log.fatal("VideoTbSqlite init","sqlite init failed | abort!");
                 abort();
             }
-            // 读取配置文件中的表名，赋值
-            Json::Value conf;
-            if(!FileUtil(CONF_FILEPATH).GetContent(&_video_table)){
-                _log.fatal("VideoTbSqlite init","table_name read err | abort!");
-                abort();
-            }
-            JsonUtil::UnSerialize(_video_table, &conf);
-            _video_table = conf["sql"]["table"]["video"].asString();
-            _views_table = conf["sql"]["table"]["views"].asString();
             _log.info("VideoTbSqlite init","init success");
         }
         // 取消拷贝构造和赋值重载

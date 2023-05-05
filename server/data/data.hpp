@@ -7,7 +7,25 @@ namespace vod{
 #define VEDIO_INFO_MAX_LEN 4096 //视频简介不能过长
     // 视频数据库父类（抽象类）
     class VideoTb{
+    protected:
+        std::mutex _mutex; // 使用C++的线程，而不直接使用linux的pthread_mutex
+        std::string _video_table; // 视频表名称
+        std::string _views_table; // 视频点赞信息表名称
+        Json::Value _sql_conf;    // 配置文件
     public:
+        VideoTb()
+        {
+            // 读取配置文件中的表名，赋值
+            if(!FileUtil(CONF_FILEPATH).GetContent(&_video_table)){
+                _log.fatal("VideoTbSqlite init","table_name read err | abort!");
+                abort();
+            }
+            JsonUtil::UnSerialize(_video_table, &_sql_conf);
+            _sql_conf = _sql_conf["sql"];
+            _video_table = _sql_conf["table"]["video"].asString();
+            _views_table = _sql_conf["table"]["views"].asString();
+            _log.info("VideoTb","init _sql_conf & table name");
+        }
         //检查视频id是否符合规范（长度必须为8）
         bool check_video_id(const std::string& def_name,const std::string& video_id)
         {

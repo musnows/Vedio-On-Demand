@@ -40,34 +40,20 @@ UNIQUE(id));"
 		return true;
     }
     // 调用初始化操作连接数据库
-    static MYSQL *MysqlInit(const std::string& conf_path)
+    static MYSQL *MysqlInit(const Json::Value& sql_conf)
     {
-        // 配置文件不能为空
-        if (conf_path.size()==0){
-            _log.fatal("MysqlInit","conf_path empty");
-            return nullptr;
-        }
         MYSQL *mysql = mysql_init(nullptr);
         if (mysql == nullptr)
         {
             _log.fatal("MysqlInit", "mysql init failed!");
             return nullptr;
         }
-        //读取配置文件
-        std::string tmp_str;
-        Json::Value conf;
-        if(!FileUtil(conf_path).GetContent(&tmp_str)){
-            //保证读取配置文件不要出错
-            _log.fatal("MysqlInit","get mysql config err");
-            return nullptr;
-        }
-        JsonUtil::UnSerialize(tmp_str, &conf);
         //通过配置文件读取mysql的配置项
-        if (mysql_real_connect(mysql, conf["sql"]["mysql"]["host"].asCString(), 
-                                        conf["sql"]["mysql"]["user"].asCString(), 
-                                        conf["sql"]["mysql"]["passwd"].asCString(), 
-                                        conf["sql"]["database"].asCString(), 
-                                        conf["sql"]["mysql"]["port"].asUInt(), 
+        if (mysql_real_connect(mysql, sql_conf["mysql"]["host"].asCString(), 
+                                        sql_conf["mysql"]["user"].asCString(), 
+                                        sql_conf["mysql"]["passwd"].asCString(), 
+                                        sql_conf["database"].asCString(), 
+                                        sql_conf["mysql"]["port"].asUInt(), 
                                         nullptr, 0) == nullptr)
         {
             _log.fatal("MysqlInit", "mysql server connect failed!");
@@ -102,29 +88,17 @@ UNIQUE(id));"
     {
     private:
         MYSQL *_mysql;     // 一个对象就是一个客户端，管理一张表
-        std::mutex _mutex; // 使用C++的线程，而不直接使用linux的pthread
-        std::string _video_table; // 视频表名称
-        std::string _views_table; // 视频点赞信息表名称
         static VideoTbMysql* _vtb_ptr; // 单例类指针
         
         // 完成mysql句柄初始化
         VideoTbMysql()
         {
-            _mysql = MysqlInit(CONF_FILEPATH);
+            _mysql = MysqlInit(_sql_conf);
             //初始化失败直接abort
             if(_mysql ==nullptr){
                 _log.fatal("VideoTbMysql init","mysql init failed | abort!");
                 abort();
             }
-            // 读取表名
-            Json::Value conf;
-            if(!FileUtil(CONF_FILEPATH).GetContent(&_video_table)){
-                _log.fatal("VideoTbMysql init","table_name read err | abort!");
-                abort();
-            }
-            JsonUtil::UnSerialize(_video_table, &conf);
-            _video_table = conf["sql"]["table"]["video"].asString();
-            _views_table = conf["sql"]["table"]["views"].asString();
             _log.info("VideoTbMysql init","init success");
         }
         // 取消拷贝构造和赋值重载
