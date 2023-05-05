@@ -1,111 +1,39 @@
-#ifndef __MY_DATA_MYSQL__
-#define __MY_DATA_MYSQL__
+#ifndef __MY_DATA_SQLITE__
+#define __MY_DATA_SQLITE__
 #include "data.hpp"
 #include <mutex>
 #include <ctime>
 #include <cstdlib>
-#include <mysql/mysql.h>
+#include <sqlite3.h>
 
 namespace vod
 {
-namespace mysql{
+namespace sqlite3{
 // 视频数据表
-#define VIDEO_TABLE_CREATE "create table if not exists tb_video (\
-id VARCHAR(8) NOT NULL DEFAULT (substring(UUID(), 1, 8)) comment '视频id', \
-name VARCHAR(50) comment '视频标题',\
-info text comment '视频简介',\
-video VARCHAR(255) comment '视频链接',\
-cover VARCHAR(255) comment '视频封面链接',\
-insert_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP comment '视频创建时间',\
-UNIQUE(id));"
+#define VIDEO_TABLE_CREATE "CREATE TABLE IF NOT EXISTS tb_video(\
+id TEXT(8) UNIQUE NOT NULL DEFAULT (lower((hex(randomblob(4))))),\
+name TEXT NOT NULL,\
+info TEXT,\
+video TEXT NOT NULL,\
+cover TEXT NOT NULL,\
+insert_time TIMESTAMP DEFAULT (datetime('now', '+8 hours')));"
 // 视频点赞信息数据表
-#define VIEWS_TABLE_CREATE "create table if not exists tb_views (\
-id varchar(8) NOT NULL comment '视频id',\
-up int NOT NULL DEFAULT 0 comment '视频点赞', \
-down int NOT NULL DEFAULT 0 comment '视频点踩',\
-view int NOT NULL DEFAULT 0 comment '视频观看量',\
-UNIQUE(id));"
+#define VIEWS_TABLE_CREATE "create table IF NOT EXISTS tb_views(\
+id TEXT(8) NOT NULL,\
+up int NOT NULL DEFAULT 0,\
+down int NOT NULL DEFAULT 0,\
+view int NOT NULL DEFAULT 0);"
 
-    // 执行mysql语句，返回值为是否执行成功
-    static bool MysqlQuery(MYSQL *mysql, const std::string &sql)
-    {
-        int ret = mysql_query(mysql, sql.c_str());
-        // 语句执行失败
-		if (ret != 0) {
-            _log.error("MysqlQuery.Err","sql: %s",sql.c_str());
-            _log.error("MysqlQuery.Err","err[%u]: %s",mysql_errno(mysql),mysql_error(mysql));
-			return false;
-		}
-        _log.info("MysqlQuery.Success","sql: %s",sql.c_str());
-		return true;
-    }
-    // 调用初始化操作连接数据库
-    static MYSQL *MysqlInit(const std::string& conf_path)
-    {
-        // 配置文件不能为空
-        if (conf_path.size()==0){
-            _log.fatal("MysqlInit","conf_path empty");
-            return nullptr;
-        }
-        MYSQL *mysql = mysql_init(nullptr);
-        if (mysql == nullptr)
-        {
-            _log.fatal("MysqlInit", "mysql init failed!");
-            return nullptr;
-        }
-        //读取配置文件
-        std::string tmp_str;
-        Json::Value conf;
-        if(!FileUtil(conf_path).GetContent(&tmp_str)){
-            //保证读取配置文件不要出错
-            _log.fatal("MysqlInit","get mysql config err");
-            return nullptr;
-        }
-        JsonUtil::UnSerialize(tmp_str, &conf);
-        //通过配置文件读取mysql的配置项
-        if (mysql_real_connect(mysql, conf["sql"]["mysql"]["host"].asCString(), 
-                                        conf["sql"]["mysql"]["user"].asCString(), 
-                                        conf["sql"]["mysql"]["passwd"].asCString(), 
-                                        conf["sql"]["database"].asCString(), 
-                                        conf["sql"]["mysql"]["port"].asUInt(), 
-                                        nullptr, 0) == nullptr)
-        {
-            _log.fatal("MysqlInit", "mysql server connect failed!");
-            return nullptr;
-        }
-        mysql_set_character_set(mysql, "utf8");
-        _log.info("MysqlInit", "mysql init success");
-        // 创建两个数据表
-        if(!MysqlQuery(mysql,VIDEO_TABLE_CREATE)){
-            _log.fatal("MysqlInit", "mysql VIDEO_TABLE_CREATE failed!");
-            return nullptr;
-        }
-        if(!MysqlQuery(mysql,VIEWS_TABLE_CREATE)){
-            _log.fatal("MysqlInit", "mysql VIEWS_TABLE_CREATE failed!");
-            return nullptr;
-        }
-        _log.info("MysqlInit", "tables created");
-        return mysql;
-    }
-    // 销毁mysql连接
-    static void MysqlDestroy(MYSQL *mysql){
-        if (mysql != nullptr) {
-			mysql_close(mysql);
-            _log.info("MysqlDestroy","destory finished");
-            return;
-		}
-        _log.warning("MysqlDestroy","mysql pointer == nullptr");
-    }
 
     // 视频数据库类
-    class VideoTbMysql :public VideoTb
+    class VideoTbSqlite :public VideoTb
     {
     private:
         MYSQL *_mysql;     // 一个对象就是一个客户端，管理一张表
         std::mutex _mutex; // 使用C++的线程，而不直接使用linux的pthread
         std::string _video_table; // 视频表名称
         std::string _views_table; // 视频点赞信息表名称
-        static VideoTbMysql* _vtb_ptr; // 单例类指针
+        static VideoTbSqlite* _vtb_ptr; // 单例类指针
 
         //检查视频id是否符合规范
         bool check_video_id(const std::string& def_name,const std::string& video_id)
@@ -132,39 +60,39 @@ UNIQUE(id));"
         }
         
         // 完成mysql句柄初始化
-        VideoTbMysql()
+        VideoTbSqlite()
         {
             _mysql = MysqlInit(CONF_FILEPATH);
             //初始化失败直接abort
             if(_mysql ==nullptr){
-                _log.fatal("VideoTbMysql init","mysql init failed | abort!");
+                _log.fatal("VideoTbSqlite init","mysql init failed | abort!");
                 abort();
             }
             // 读取表名
             Json::Value conf;
             if(!FileUtil(CONF_FILEPATH).GetContent(&_video_table)){
-                _log.fatal("VideoTbMysql init","table_name read err | abort!");
+                _log.fatal("VideoTbSqlite init","table_name read err | abort!");
                 abort();
             }
             JsonUtil::UnSerialize(_video_table, &conf);
             _video_table = conf["sql"]["table"]["video"].asString();
             _views_table = conf["sql"]["table"]["views"].asString();
-            _log.info("VideoTbMysql init","init success");
+            _log.info("VideoTbSqlite init","init success");
         }
         // 取消拷贝构造和赋值重载
-        VideoTbMysql(const VideoTbMysql& _v) = delete;
-        VideoTbMysql& operator==(const VideoTbMysql& _v)= delete;
+        VideoTbSqlite(const VideoTbSqlite& _v) = delete;
+        VideoTbSqlite& operator==(const VideoTbSqlite& _v)= delete;
     public:
         // 释放msyql操作句柄
-        ~VideoTbMysql(){
+        ~VideoTbSqlite(){
             MysqlDestroy(_mysql);
         }
         // 获取单例(懒汉)
-        static VideoTbMysql* GetInstance()
+        static VideoTbSqlite* GetInstance()
         {
             if (_vtb_ptr == nullptr)
             {
-                _vtb_ptr = new VideoTbMysql;
+                _vtb_ptr = new VideoTbSqlite;
             }
             return _vtb_ptr;
         }
@@ -439,7 +367,7 @@ UNIQUE(id));"
         }
     };
     // 类外初始化为null
-    VideoTbMysql* VideoTbMysql::_vtb_ptr = nullptr;
+    VideoTbSqlite* VideoTbSqlite::_vtb_ptr = nullptr;
 }
 }
 #endif

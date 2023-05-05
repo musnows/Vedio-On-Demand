@@ -3,6 +3,8 @@
 #include "../utils.hpp"
 
 namespace vod{
+#define CONF_FILEPATH "./config.json"//日志文件路径
+#define VEDIO_INFO_MAX_LEN 4096 //视频简介不能过长
     // 视频数据库父类（抽象类）
     class VideoTb{
     public:

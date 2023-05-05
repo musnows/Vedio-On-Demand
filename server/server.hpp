@@ -320,7 +320,7 @@ namespace vod
         Server(size_t port = DEFAULT_SERVER_PORT)
             : _port(port)
         {
-            VideoTable = VideoTbMysql::GetInstance();//获取单例
+            VideoTable = mysql::VideoTbMysql::GetInstance();//获取单例
             _log.info("server init","get instance of VideoTb");
             std::string tmp_str;
             Json::Value conf;
