@@ -106,30 +106,6 @@ UNIQUE(id));"
         std::string _video_table; // 视频表名称
         std::string _views_table; // 视频点赞信息表名称
         static VideoTbMysql* _vtb_ptr; // 单例类指针
-
-        //检查视频id是否符合规范
-        bool check_video_id(const std::string& def_name,const std::string& video_id)
-        {
-            //数据库中定义的是8位id,不为8都是有问题的
-            if(video_id.size()!=8){
-                _log.warning(def_name,"id size err | sz:%d",video_id.size());
-                return false;
-            }
-            return true;
-        }
-        //检查视频简介和名字的长度
-        bool check_video_info(const std::string& def_name,const Json::Value& video)
-        {
-            if(video["name"].asString().size()==0){//1.视频名称不能为空
-                _log.warning("Video Update","name size == 0");
-                return false;
-            }
-            else if(video["info"].asString().size()>VEDIO_INFO_MAX_LEN){//2.简介不能过长（也应该在前端进行限制）
-                _log.warning("Video Update","info size out of max len!");
-                return false;
-            }
-            return true;
-        }
         
         // 完成mysql句柄初始化
         VideoTbMysql()

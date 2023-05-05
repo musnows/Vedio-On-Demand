@@ -8,6 +8,31 @@ namespace vod{
     // 视频数据库父类（抽象类）
     class VideoTb{
     public:
+        //检查视频id是否符合规范（长度必须为8）
+        bool check_video_id(const std::string& def_name,const std::string& video_id)
+        {
+            //数据库中定义的是8位id,不为8都是有问题的
+            if(video_id.size()!=8){
+                _log.warning(def_name,"id size err | sz:%d",video_id.size());
+                return false;
+            }
+            return true;
+        }
+        //检查视频简介和名字的长度
+        bool check_video_info(const std::string& def_name,const Json::Value& video)
+        {
+            // 1.视频名称不能为空
+            if(video["name"].asString().size()==0){
+                _log.warning("Video Update","name size == 0");
+                return false;
+            }
+            // 2.简介不能过长（也应该在前端进行限制）
+            else if(video["info"].asString().size()>VEDIO_INFO_MAX_LEN){
+                _log.warning("Video Update","info size out of max len!");
+                return false;
+            }
+            return true;
+        }
         virtual bool Insert(const Json::Value &video) = 0;
         virtual bool Update(const std::string& video_id, const Json::Value &video) = 0;
         virtual bool Delete(const std::string& video_id) = 0;
