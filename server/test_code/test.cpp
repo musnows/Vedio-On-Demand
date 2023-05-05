@@ -1,5 +1,5 @@
 #include "../utils.hpp"
-#include "../data.hpp"
+#include "../data/data.hpp"
 #include <ctime>
 using namespace std;
 
@@ -65,7 +65,7 @@ void LogErrTest()
 
 void MysqlTest()
 {
-	vod::VideoTb testable;
+	vod::VideoTb* testable;
 	Json::Value video;
 	// video["name"] = "比亚迪仰望u9";
 	// video["info"] = "比亚迪仰望u9的宣传视频和cg渲染图，超帅！";
@@ -94,9 +94,9 @@ void MysqlTest()
 	// 									video["video"].asCString(),
 	// 									video["cover"].asCString());
 
-	testable.SelectVideoView("d41d3849", &video, true);
-	testable.UpdateVideoUpDown("d41d3849");
-	testable.UpdateVideoUpDown("d41d3849", false);
+	// testable.SelectVideoView("d41d3849", &video, true);
+	// testable.UpdateVideoUpDown("d41d3849");
+	// testable.UpdateVideoUpDown("d41d3849", false);
 }
 
 #include <stdio.h>
@@ -110,6 +110,7 @@ void MysqlTest()
 // azColName 是存放字段名称的二维数组
 static int callback(void *json_videos, int argc, char **argv, char **azColName)
 {
+	printf("called\n");
 	Json::Value *video_s = (Json::Value *)json_videos; // 转为原本的类型
 	Json::Value video;								   // 单个视频
 	for (int i = 0; i < argc; i++)
@@ -150,36 +151,47 @@ void SqliteTest()
 	// 		);)";
 
 	// 插入数据
-	// sql = "insert into tb_video (name, info, video, cover) values ('名字2','说明信息2','test2','testc2');";
-
-	// 查询
-	Json::Value videos;
-	char **pazResult; /* 二维指针数组，存储查询结果 */
-	/* 获得查询结果的行数和列数 */
-	int nRow = 0, nColumn = 0;
-	sqlite3_get_table(db, "SELECT * FROM tb_video;", &pazResult, &nRow, &nColumn, NULL);
-
-	std::cout << nRow <<" " <<  nColumn << std::endl;
-	int index = nColumn;//从第二列开始，跳过第一行（第一行都是字段名）
-	for (int i = 0; i < nRow; i++)
+	sql = "insert into tb_video (name, info, video, cover) values ('名字2','说明信息2','test2','testc2');";
+	ret = sqlite3_exec(db, sql.c_str(), callback, 0, &zErrMsg);
+	if (ret != SQLITE_OK)
 	{
-		Json::Value video;
-		for (int j = 0; j < nColumn; j++)
-		{
-			// 前nColumn个数据都是字段名，所以可以用 pazResult[j] 来打印
-			printf("%-8s : %-8s\n", pazResult[j],pazResult[index]);
-			video[pazResult[j]] = pazResult[index] ?pazResult[index] : "NULL"; // 存入数据
-			index++;
-		}
-		// json list
-		videos.append(video);
+		fprintf(stderr, "SQL error: %s\n", zErrMsg);
+		sqlite3_free(zErrMsg);
+	}
+	else
+	{
+		fprintf(stdout, "SQL successfully\n");
 	}
 
-	std::string json_str;
-	vod::JsonUtil::Serialize(videos, &json_str);
-	std::cout << json_str << std::endl;
+	// 查询
+	// Json::Value videos;
+	// char **pazResult; /* 二维指针数组，存储查询结果 */
+	// /* 获得查询结果的行数和列数 */
+	// int nRow = 0, nColumn = 0;
+	// sqlite3_get_table(db, "SELECT * FROM tb_video;", &pazResult, &nRow, &nColumn, NULL);
+
+	// std::cout << nRow <<" " <<  nColumn << std::endl;
+	// int index = nColumn;//从第二列开始，跳过第一行（第一行都是字段名）
+	// for (int i = 0; i < nRow; i++)
+	// {
+	// 	Json::Value video;
+	// 	for (int j = 0; j < nColumn; j++)
+	// 	{
+	// 		// 前nColumn个数据都是字段名，所以可以用 pazResult[j] 来打印
+	// 		printf("%-8s : %-8s\n", pazResult[j],pazResult[index]);
+	// 		video[pazResult[j]] = pazResult[index] ?pazResult[index] : "NULL"; // 存入数据
+	// 		index++;
+	// 	}
+	// 	// json list
+	// 	videos.append(video);
+	// }
+
+	// std::string json_str;
+	// vod::JsonUtil::Serialize(videos, &json_str);
+	// std::cout << json_str << std::endl;
 	
-	sqlite3_free_table(pazResult);
+	// sqlite3_free_table(pazResult);
+
 	sqlite3_close(db);
 }
 
