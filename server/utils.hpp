@@ -14,6 +14,7 @@
 
 namespace vod
 {
+#define CONF_FILEPATH "./config.json" // 项目配置文件路径
     // 用于处理本地文件的类
     class FileUtil
     {
