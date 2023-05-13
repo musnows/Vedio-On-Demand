@@ -27,6 +27,8 @@ namespace vod
             _log.fatal("PortCheck","create socket err");
             return true; // error
         }
+        int optval = 1;
+        setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval));
         // 创建一个socket，判断是否被绑定
         struct sockaddr_in server_addr {};
         memset(&server_addr, 0, sizeof(server_addr));
