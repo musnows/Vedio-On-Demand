@@ -87,6 +87,8 @@ view int NOT NULL DEFAULT 0);"
     private:
         sqlite3 *_db;     // 一个对象就是一个客户端，管理一张表
         static VideoTbSqlite* _vtb_ptr; // 单例类指针
+        std::mutex _mutex; // 使用C++的线程，而不直接使用linux的pthread_mutex
+
         
         // 完成mysql句柄初始化
         VideoTbSqlite()
@@ -110,9 +112,12 @@ view int NOT NULL DEFAULT 0);"
         // 获取单例(懒汉)
         static VideoTbSqlite* GetInstance()
         {
-            if (_vtb_ptr == nullptr)
-            {
-                _vtb_ptr = new VideoTbSqlite;
+            if (_vtb_ptr == nullptr){
+                std::unique_lock<std::mutex> lock(_single_mutex);
+                if (_vtb_ptr == nullptr)
+                {
+                    _vtb_ptr = new VideoTbSqlite;
+                }
             }
             return _vtb_ptr;
         }

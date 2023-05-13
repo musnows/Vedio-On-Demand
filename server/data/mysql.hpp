@@ -25,6 +25,8 @@ up int NOT NULL DEFAULT 0 comment '视频点赞', \
 down int NOT NULL DEFAULT 0 comment '视频点踩',\
 view int NOT NULL DEFAULT 0 comment '视频观看量',\
 UNIQUE(id));"
+typedef std::pair<MYSQL_RES*,std::mutex*> MYSQL_RES_PAIR;//结果集
+
 
     // 执行mysql语句，返回值为是否执行成功
     static bool MysqlQuery(MYSQL *mysql, const std::string &sql)
@@ -82,6 +84,18 @@ UNIQUE(id));"
 		}
         _log.warning("MysqlDestroy","mysql pointer == nullptr");
     }
+    
+    // 释放结果集和锁，指针必须是一个mysql结果集和锁的pair
+    struct MysqlFreeResult
+    {
+        void operator()(MYSQL_RES_PAIR* ptr)
+        {
+            mysql_free_result(ptr->first);//释放结果集
+            (ptr->second)->unlock();//解锁
+            _log.info("MysqlFreeResult","free & unlock");
+        }
+    };
+
 
     // 视频数据库类
     class VideoTbMysql :public VideoTb
@@ -89,6 +103,7 @@ UNIQUE(id));"
     private:
         MYSQL *_mysql;     // 一个对象就是一个客户端，管理一张表
         static VideoTbMysql* _vtb_ptr; // 单例类指针
+        // std::mutex _mutex; // 使用C++的线程，而不直接使用linux的pthread_mutex
         
         // 完成mysql句柄初始化
         VideoTbMysql()
@@ -112,9 +127,12 @@ UNIQUE(id));"
         // 获取单例(懒汉)
         static VideoTbMysql* GetInstance()
         {
-            if (_vtb_ptr == nullptr)
-            {
-                _vtb_ptr = new VideoTbMysql;
+            if (_vtb_ptr == nullptr){
+                std::unique_lock<std::mutex> lock(_single_mutex);
+                if (_vtb_ptr == nullptr)
+                {
+                    _vtb_ptr = new VideoTbMysql;
+                }
             }
             return _vtb_ptr;
         }
@@ -122,6 +140,7 @@ UNIQUE(id));"
         // 新增-传入视频信息
         bool Insert(const Json::Value &video)
         {
+            std::unique_lock<std::mutex> lock(_mutex);
             if(!check_video_info("Video Insert",video))return false;
             //插入的sql语句
             #define INSERT_VIDEO "insert into %s (name,info,video,cover) values ('%s','%s','%s','%s');"
@@ -137,6 +156,7 @@ UNIQUE(id));"
         // 修改-传入视频id和新的信息(暂时不支持修改视频封面和路径)
         bool Update(const std::string& video_id, const Json::Value &video)
         {   
+            std::unique_lock<std::mutex> lock(_mutex);
             if(!check_video_id("Video Update",video_id))return false;
             if(!check_video_info("Video Update",video))return false;
             #define UPDATE_VIDEO_INFO "update %s set name='%s',info='%s' where id='%s';"
@@ -151,6 +171,7 @@ UNIQUE(id));"
         // 删除-传入视频id
         bool Delete(const std::string& video_id)
         {
+            std::unique_lock<std::mutex> lock(_mutex);
             if(!check_video_id("Video Delete",video_id))return false;
             #define DELETE_VIDEO "delete from %s where id='%s';"
             std::string sql;
@@ -219,16 +240,18 @@ UNIQUE(id));"
             }
             // 保存结果集到本地
             MYSQL_RES *res = mysql_store_result(_mysql);
+            std::unique_ptr<MYSQL_RES_PAIR,MysqlFreeResult> up(new MYSQL_RES_PAIR(res,&_mutex)); // 智能指针
             if (res == nullptr) {
-                mysql_free_result(res);//释放结果集
-                _mutex.unlock();
+                // mysql_free_result(res);//释放结果集
+                // _mutex.unlock();
                 _log.error("Video SelectOne","mysql store result failed | err[%u]: %s",mysql_errno(_mysql),mysql_error(_mysql));
                 return false;
             }
             //_mutex.unlock();
             int num_rows = mysql_num_rows(res);//获取结果集的行数
             if(num_rows==0){//一行都没有，空空如也
-                mysql_free_result(res);//释放结果集
+                // mysql_free_result(res);//释放结果集
+                // _mutex.unlock();
                 _log.warning("Video SelectOne","no target id '%s' is found",video_id.c_str());
                 return false;
             }
@@ -245,8 +268,8 @@ UNIQUE(id));"
             (*video)["video"] = row[3];
             (*video)["cover"] = row[4];
             (*video)["insert_time"] = row[5];
-            mysql_free_result(res);
-            _mutex.unlock();
+            // mysql_free_result(res);
+            // _mutex.unlock();
             _log.info("Video SelectOne","id '%s' found",video_id.c_str());
             return true;
         }
@@ -325,14 +348,17 @@ UNIQUE(id));"
             (*video_view)["id"] = video_id;
             int num_rows=mysql_num_rows(res);//获取行数
             if(num_rows==0){
-                // 没有就插入一个
                 mysql_free_result(res);
+                _mutex.unlock();
+                // 没有就插入一个
                 _log.info("SelectVideoView","no target id '%s' is found",video_id.c_str());
                 #define INSERT_VIDEO_VIEW "insert into %s (id,up,down,view) values ('%s',0,0,1);"
                 sprintf((char*)sql.c_str(),INSERT_VIDEO_VIEW,_views_table.c_str(),video_id.c_str());
                 (*video_view)["up"] = 0;//初始值都是0
                 (*video_view)["down"] = 0;
                 (*video_view)["view"] = 1;//这里新建的时候，代表用户已经点击进入视频页面了，所以初始值是1
+                
+                std::unique_lock<std::mutex> lock(_mutex);
                 return MysqlQuery(_mysql,sql);
             }
             // else if(num_rows>1){
@@ -361,6 +387,7 @@ UNIQUE(id));"
             std::string sql;
             sql.resize(256);
             sprintf((char*)sql.c_str(),UPDATE_VIDEO_VIEW,_views_table.c_str(),video_view,video_id.c_str());
+            std::unique_lock<std::mutex> lock(_mutex);
             return MysqlQuery(_mysql,sql);
         }
         // up和down的更新

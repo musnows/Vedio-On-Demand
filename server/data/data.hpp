@@ -1,12 +1,14 @@
 #ifndef __MY_DATA__
 #define __MY_DATA__
 #include "../utils.hpp"
+#include <memory>
 
 namespace vod{
 #define VEDIO_INFO_MAX_LEN 4096 //视频简介不能过长
     // 视频数据库父类（抽象类）
     class VideoTb{
     protected:
+        static std::mutex _single_mutex; // 创建单例时使用的指针
         std::mutex _mutex; // 使用C++的线程，而不直接使用linux的pthread_mutex
         std::string _video_table; // 视频表名称
         std::string _views_table; // 视频点赞信息表名称
@@ -60,5 +62,6 @@ namespace vod{
         virtual bool UpdateVideoView(const std::string& video_id,size_t video_view) = 0;
         virtual bool UpdateVideoUpDown(const std::string& video_id,bool up_flag = true) = 0;
     };
+    std::mutex VideoTb::_single_mutex; // 初始化
 }
 #endif
