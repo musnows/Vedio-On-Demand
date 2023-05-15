@@ -240,18 +240,18 @@ typedef std::pair<MYSQL_RES*,std::mutex*> MYSQL_RES_PAIR;//结果集
             }
             // 保存结果集到本地
             MYSQL_RES *res = mysql_store_result(_mysql);
-            std::unique_ptr<MYSQL_RES_PAIR,MysqlFreeResult> up(new MYSQL_RES_PAIR(res,&_mutex)); // 智能指针
+            // std::unique_ptr<MYSQL_RES_PAIR,MysqlFreeResult> up(new MYSQL_RES_PAIR(res,&_mutex)); // 智能指针
             if (res == nullptr) {
-                // mysql_free_result(res);//释放结果集
-                // _mutex.unlock();
+                mysql_free_result(res);//释放结果集
+                _mutex.unlock();
                 _log.error("Video SelectOne","mysql store result failed | err[%u]: %s",mysql_errno(_mysql),mysql_error(_mysql));
                 return false;
             }
             //_mutex.unlock();
             int num_rows = mysql_num_rows(res);//获取结果集的行数
             if(num_rows==0){//一行都没有，空空如也
-                // mysql_free_result(res);//释放结果集
-                // _mutex.unlock();
+                mysql_free_result(res);//释放结果集
+                _mutex.unlock();
                 _log.warning("Video SelectOne","no target id '%s' is found",video_id.c_str());
                 return false;
             }
@@ -268,8 +268,8 @@ typedef std::pair<MYSQL_RES*,std::mutex*> MYSQL_RES_PAIR;//结果集
             (*video)["video"] = row[3];
             (*video)["cover"] = row[4];
             (*video)["insert_time"] = row[5];
-            // mysql_free_result(res);
-            // _mutex.unlock();
+            mysql_free_result(res);
+            _mutex.unlock();
             _log.info("Video SelectOne","id '%s' found",video_id.c_str());
             return true;
         }
