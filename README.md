@@ -58,10 +58,10 @@ ls /usr/include
 /usr/include/json
 ```
 
-但在deepin20.8上安装时，路径为
+但在`deepin20.9`上安装时，路径为
 
 ```
-sudo ls /usr/include/jsoncpp/json
+/usr/include/jsoncpp/json
 ```
 
 检查路径后，需要修改 [server/utils](./server/utils.hpp) 里对jsoncpp的include
@@ -74,8 +74,16 @@ sudo ls /usr/include/jsoncpp/json
 
 参考我的博客：https://blog.musnow.top/posts/577382991/
 
+在deepin下的安装命令和centos不同，在此记录如下
+
+```bash
+# deepin安装mysql开发包
+sudo apt install default-libmysqlclient-dev
+sudo apt-get install libmariadbclient-dev
+```
+
 ## 3.ToDo
 
 - [x] data 中的数据类进行单例封装
-- [ ] 提供 sqlite3 数据库选项
+- [x] 提供 sqlite3 数据库选项
 - [ ] 提供 dockerfile 进行 docker 部署
