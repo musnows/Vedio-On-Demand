@@ -8,8 +8,10 @@
 #include <unistd.h>
 #include <sys/stat.h>
 // 需要注意jsoncpp的安装路径，查看/usr/include目录
-// 我的安装路径是/usr/include/json
+// Centos8上安装路径是/usr/include/json
 #include <json/json.h>
+// 测试在deepin上，jsoncpp的安装路径是/usr/include/jsoncpp/json
+// #include <jsoncpp/json/json.h>
 #include "mylog.hpp"
 
 namespace vod
