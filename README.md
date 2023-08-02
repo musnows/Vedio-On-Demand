@@ -5,7 +5,7 @@ VOD System Base On C++
 
 ## 1.简介
 
-使用 jsoncpp\httplib\mysql 等C++第三方库实现的视频点播系统。
+使用 jsoncpp\httplib\MySQL 等C++第三方库实现的视频点播系统。
 
 提供简单的前端页面，实现了如下功能：
 
@@ -24,7 +24,7 @@ VOD System Base On C++
 
 * jsoncpp\httplib 第三方库
 * mariadb 数据库
-* 用于连接 mariadb\mysql 数据库的 C++ dev 包
+* 用于连接 mariadb\MySQL 数据库的 C++ dev 包
 
 ```
 MariaDB数据库版本
@@ -64,22 +64,30 @@ ls /usr/include
 /usr/include/jsoncpp/json
 ```
 
-检查路径后，需要修改 [server/utils](./server/utils.hpp) 里对jsoncpp的include
+检查路径后，需要修改 [server/utils](./server/utils.hpp) 里对 jsoncpp 的 `#include` 路径
 
 ### 2.2 httplib
 
 无需安装，这是一个单头文件的库，已在本项目中包含。
 
-### 2.3 mysql/mariadb
+### 2.3 MySQL/mariadb
 
 参考我的博客：https://blog.musnow.top/posts/577382991/
 
-在deepin下的安装命令和centos不同，在此记录如下
+在deepin下的安装MySQL开发包的命令和CentOS不同，在此记录如下
 
 ```bash
-# deepin安装mysql开发包
-sudo apt install default-libmysqlclient-dev
+# deepin安装MySQL开发包
+sudo apt install default-libMySQLclient-dev
 sudo apt-get install libmariadbclient-dev
+```
+
+#### 2.4 sqlite
+
+在CentOS中使用如下命令安装sqlite3的支持和C++开发包
+
+```
+sudo yum install sqlite-devel
 ```
 
 ## 3.ToDo
