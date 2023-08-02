@@ -359,6 +359,7 @@ view int NOT NULL DEFAULT 0);"
             std::string sql;
             sql.resize(256);
             sprintf((char*)sql.c_str(),UPDATE_VIDEO_VIEW,_views_table.c_str(),video_view,video_id.c_str());
+            std::unique_lock<std::mutex> lock(_mutex);
             return SqliteQuery(_db,sql);
         }
         // up和down的更新
