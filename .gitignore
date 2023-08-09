@@ -1,6 +1,9 @@
 .vscode/
 .tmp
 
+# 忽略配置文件
+config.json
+
 # 忽略可执行文件
 test
 vod-server

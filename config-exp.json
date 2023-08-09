@@ -3,7 +3,7 @@
         "used":"mysql",
         "mysql":{
             "host": "127.0.0.1",
-            "port": 0,
+            "port": 3306,
             "user": "root",
             "passwd": ""
         },
@@ -15,7 +15,7 @@
     },
     "web":{
         "root":"./www",
-        "video_root":"/video/",
-        "image_root":"/image/"
+        "video_root":"/static/video/",
+        "image_root":"/static/cover/"
     }
 }
