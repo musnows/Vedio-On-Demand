@@ -1925,3 +1925,10 @@ span.join-date {
     .auto-clear .col-xs-4:nth-child(3n+1){clear:left;}
     .auto-clear .col-xs-6:nth-child(odd){clear:left;}
 }
+
+
+.addon-row{
+	margin-right: -50px;
+	margin-left: 350px;
+	
+}
