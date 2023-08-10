@@ -200,7 +200,17 @@
         event.preventDefault(); // 阻止表单默认提交行为
         // 在这里执行发送邮件的相关逻辑
         const useremail = useremailInput.value.trim();
-        console.log('test email');
+
+        // 使用正则表达式验证邮箱格式
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        const isValidEmail = emailRegex.test(useremail);
+
+        if (!isValidEmail) {
+            // 如果邮箱格式不正确，弹窗提示用户
+            alert("请输入有效的邮箱地址");
+            return;
+        }
+        
         // 发送请求到/usr/email/verify接口并处理响应
         fetch('/usr/email/verify', {
             method: 'POST',
