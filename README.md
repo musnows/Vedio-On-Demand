@@ -76,15 +76,15 @@ ls /usr/include
 
 无需安装，这是一个单头文件的库，已在本项目中包含。
 
-### 2.3 mysql/mariadb
+### 2.3 MySQL/mariadb
 
 CentOS上的安装步骤，参考我的博客：https://blog.musnow.top/posts/577382991/
 
 在deepin下的安装命令和CentOS不同，在此记录如下
 
 ```bash
-# deepin安装mysql开发包
-sudo apt install default-libmysqlclient-dev
+# deepin安装MySQL开发包
+sudo apt install default-libMySQLclient-dev
 sudo apt-get install libmariadbclient-dev
 ```
 
