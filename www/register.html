@@ -18,9 +18,13 @@
       <![endif]-->
     <link rel="stylesheet" href="css/font-awesome.css">
     <!--[if lt IE 8]>
-      <link rel="stylesheet" href="css/ie.css" type="text/css" media="screen, projection">
-      <![endif]-->
+    <link rel="stylesheet" href="css/ie.css" type="text/css" media="screen, projection">
+    <![endif]-->
     <link href="css/lity.css" rel="stylesheet">
+    <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
+    <script src="js/jquery-1.12.1.min.js"></script>
+    <script src="js/bootstrap.min.js"></script>
+    <script src="js/lity.js"></script>
 </head>
 
 <body>
@@ -86,7 +90,6 @@
                                     <div class="register-form">
                                         <h2 class="title main-head-title">注册您的账户</h2>
                                         <form method="post" data-abide novalidate>
-                                            <!-- <form method="post"> -->
                                             <div class="input-group">
                                                 <span class="fa fa-envelope login-inputicon"
                                                     style="color:rgb(116, 116, 116);  margin-left: -302px;"></span>
@@ -98,6 +101,11 @@
                                                     style="color:rgb(116, 116, 116);  margin-left: -302px;"></span>
                                                 <input style="color:rgb(0, 0, 0);" type="text" name="username"
                                                     placeholder="输入您的用户名" required>
+                                            </div>
+                                            <div class="input-group">
+                                                <span class="fa fa-photo login-inputicon"
+                                                    style="color:rgb(116, 116, 116);  margin-left: -305px;"></span>
+                                                <input type="file" class="custom-file-input" id="useravatar" name="useravatar" required>
                                             </div>
                                             <div class="input-group" id="password-group">
                                                 <span class="fa fa-lock login-inputicon"
@@ -112,6 +120,8 @@
                                                     id="confirm-password" placeholder="确认您的密码" required>
                                             </div>
                                             <div class="email-verify-btn-box">
+                                                <span class="fa fa-bars login-inputicon"
+                                                style="color:rgb(116, 116, 116);  margin-left: -179px;"></span>
                                                 <input style="color:rgb(0, 0, 0);" type="text" name="useremail-verify"
                                                     placeholder="邮箱验证码" required>
                                                 <button class="send-email-btn" 

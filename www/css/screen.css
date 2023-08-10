@@ -1968,3 +1968,8 @@ opacity: 1;
 background: var(--primary-color);
 opacity: 0.7;
 }
+
+.icon-reg-login{
+	color:rgb(116, 116, 116);
+	/* margin-left: -302px; */
+}
