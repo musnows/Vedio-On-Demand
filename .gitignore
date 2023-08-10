@@ -12,5 +12,6 @@ vod-server
 
 # 忽略资源文件的路径
 # www/
+www/static/
 www/image/
 www/video/

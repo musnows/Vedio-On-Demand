@@ -15,9 +15,9 @@
    <link rel="stylesheet" href="css/animation.css">
    <link rel="stylesheet" href="css/font-awesome.css">
    <link href="css/lity.css" rel="stylesheet">
-	<!-- 51la统计 -->
-	<script charset="UTF-8" id="LA_COLLECT" src="//sdk.51.la/js-sdk-pro.min.js"></script>
-	<script>LA.init({id:"K3OtULke1xiMbzqE",ck:"K3OtULke1xiMbzqE"})</script>
+   <!-- 51la统计 -->
+   <script charset="UTF-8" id="LA_COLLECT" src="//sdk.51.la/js-sdk-pro.min.js"></script>
+   <script>LA.init({ id: "K3OtULke1xiMbzqE", ck: "K3OtULke1xiMbzqE" })</script>
    <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
    <script src="js/jquery-1.12.1.min.js"></script>
    <script src="js/bootstrap.min.js"></script>
@@ -42,9 +42,6 @@
 <body>
    <div id="myapp">
       <!-- title -->
-      <div id="myapp">
-         <input type="text" v-model="video.name">
-       </div>
       <!-- SINGLE VIDEO -->
       <div id="single-video" class="container-fluid standard-bg">
          <!-- HEADER -->
@@ -94,6 +91,20 @@
          <div class="row">
             <!-- SIDEBAR -->
             <div class="col-lg-2 col-md-4 hidden-sm hidden-xs">
+               <aside class="dark-bg">
+                  <article>
+                     <h2 class="icon"><i class="fa fa-gears" aria-hidden="true"></i>categories</h2>
+                     <ul class="sidebar-links">
+                        <li class="fa fa-chevron-right"><a href="#">Lifestyle</a><span>4.000</span></li>
+                        <li class="fa fa-chevron-right"><a href="#">World News</a><span>2.000</span></li>
+                        <li class="fa fa-chevron-right"><a href="#">Funny videos</a><span>650</span></li>
+                        <li class="fa fa-chevron-right"><a href="#">Hot Stories</a><span>4.000</span></li>
+                        <li class="fa fa-chevron-right"><a href="#">Music Clips</a><span>7.800</span></li>
+                        <li class="fa fa-chevron-right"><a href="#">Premier Trailers</a><span>200</span></li>
+                     </ul>
+                  </article>
+                  <div class="clearfix spacer"></div>
+               </aside>
             </div>
             <!-- SINGLE VIDEO -->
             <div id="single-video-wrapper" class="col-lg-10 col-md-8">
@@ -109,6 +120,7 @@
                               <iframe v-bind:src="video.video" class="embed-responsive-item"></iframe>
                            </div>
                            <div class="metabox">
+                              <p>{{video.name}}</p>
                               <button class="mybtn" @click="update_video_view_up">
                                  <span class="meta-i">
                                     <i class="fa fa-thumbs-up" aria-hidden="true"></i>{{video_view.up}}
@@ -294,7 +306,7 @@
                type: "put",
                context: this,
                success: function (result, status, xhr) {
-                  this.video_view.up ++;
+                  this.video_view.up++;
                   alert("点赞成功");
                   //window.location.reload();
                }
@@ -306,7 +318,7 @@
                type: "put",
                context: this,
                success: function (result, status, xhr) {
-                  this.video_view.down ++;
+                  this.video_view.down++;
                   alert("点踩成功");
                   //window.location.reload();
                }
@@ -315,12 +327,12 @@
       },
       watch: {
          'video': {
-           deep: true,
-           handler: function(newVal, oldVal) {
-             document.title = newVal.name + " | 视频点播系统";
-           }
+            deep: true,
+            handler: function (newVal, oldVal) {
+               document.title = newVal.name + " | 视频点播系统";
+            }
          }
-       }
+      }
    });
    app.get_video();
    app.get_video_view();
