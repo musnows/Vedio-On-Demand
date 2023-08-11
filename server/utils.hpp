@@ -135,6 +135,16 @@ namespace vod
             _log.info("FileUtil.DeleteFile","remove success! path:%s",_path.c_str());
             return true;
         }
+        // 从文件路径获取文件后缀名
+        std::string GetFileExtension() 
+        {
+            size_t dot_pos = _path.rfind('.');
+            if (dot_pos != std::string::npos && dot_pos < _path.length() - 1) 
+            {
+                return _path.substr(dot_pos + 1);
+            }
+            return ""; // 如果没有后缀名，则返回空字符串
+        }
     };
 
     // json序列化和反序列化的方法
