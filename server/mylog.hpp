@@ -131,13 +131,13 @@ struct LogTime{
             const char* _def_name = def_name.empty() ? "unknow" : def_name.c_str(); 
             // 格式化打印到文件中
             if (_log_time == LogTime::Disable)
-                fprintf(out, "%s | %d | %s | %s\n", 
+                fprintf(out, "%s | %u | %s | %s\n", 
                         _log_level[level], 
                         std::this_thread::get_id(),
                         _def_name, 
                         _log_info.c_str());
             else
-                fprintf(out, "%s | %s | %d | %s | %s\n",
+                fprintf(out, "%s | %s | %u | %s | %s\n",
                         _getLogTime().c_str(),
                         _log_level[level],
                         std::this_thread::get_id(),
