@@ -5,6 +5,7 @@
 #include <sstream>
 #include <memory>
 #include <string>
+#include <vector>
 #include <unistd.h>
 #include <sys/stat.h>
 // 需要注意jsoncpp的安装路径，查看/usr/include目录

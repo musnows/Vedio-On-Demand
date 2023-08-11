@@ -9,23 +9,53 @@
 namespace vod
 {
 namespace mysql{
+// 视频分类表
+#define VIDEO_CATEGORY_TABLE_CREATE "create table if not exists tb_category (\
+id INT UNSIGNED PRIMARY KEY AUTO_INCREMENT COMMENT '视频分类id', \
+name VARCHAR(50) NOT NULL UNIQUE COMMENT '视频分类名字' \
+);"
 // 视频数据表
 #define VIDEO_TABLE_CREATE "create table if not exists tb_video (\
-id VARCHAR(8) NOT NULL DEFAULT (substring(UUID(), 1, 8)) comment '视频id', \
-name VARCHAR(50) comment '视频标题',\
-info text comment '视频简介',\
-video VARCHAR(255) comment '视频链接',\
-cover VARCHAR(255) comment '视频封面链接',\
-insert_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP comment '视频创建时间',\
-UNIQUE(id));"
+id INT UNSIGNED PRIMARY KEY AUTO_INCREMENT COMMENT '视频id', \
+name VARCHAR(50) NOT NULL COMMENT '视频标题', \
+info TEXT NOT NULL DEFAULT '' COMMENT '视频简介', \
+video VARCHAR(255) NOT NULL COMMENT '视频文件链接', \
+cover VARCHAR(255) NOT NULL COMMENT '视频封面链接', \
+category INT UNSIGNED NOT NULL DEFAULT 0 COMMENT '视频分类',\
+insert_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '视频创建时间', \
+foreign key (category) references tb_category(id) \
+);"
 // 视频点赞信息数据表
-#define VIEWS_TABLE_CREATE "create table if not exists tb_views (\
-id varchar(8) NOT NULL comment '视频id',\
-up int NOT NULL DEFAULT 0 comment '视频点赞', \
-down int NOT NULL DEFAULT 0 comment '视频点踩',\
-view int NOT NULL DEFAULT 0 comment '视频观看量',\
-UNIQUE(id));"
-typedef std::pair<MYSQL_RES*,std::mutex*> MYSQL_RES_PAIR;//结果集
+#define VIDEO_VIEWS_TABLE_CREATE "create table if not exists tb_views (\
+id INT UNSIGNED NOT NULL PRIMARY KEY COMMENT '视频id',\
+up int NOT NULL DEFAULT 0 COMMENT '视频点赞', \
+down int NOT NULL DEFAULT 0 COMMENT '视频点踩',\
+view int NOT NULL DEFAULT 0 COMMENT '视频观看量',\
+foreign key (id) references tb_video(id) \
+);"
+// 用户表
+#define USER_TABLE_CREATE "create table if not exists tb_user (\
+id INT UNSIGNED NOT NULL PRIMARY KEY AUTO_INCREMENT COMMENT '用户id',\
+name VARCHAR(30) NOT NULL COMMENT '用户名',\
+email VARCHAR(50) NOT NULL COMMENT '用户邮箱，入库前需确认邮箱有效', \
+avatar VARCHAR(255) NOT NULL COMMENT '用户头像文件路径', \
+passwd_md5 VARCHAR(70) NOT NULL COMMENT '用户密码加盐后的sha256值', \
+passwd_salt VARCHAR(10) NOT NULL COMMENT '用户密码加盐值.密码拼接在盐后面再计算sha256', \
+insert_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '用户注册时间' \
+);"
+// 视频评论表
+#define VIDEO_COMMENT_TABLE_CREATE "create table if not exists tb_comment (\
+id INT UNSIGNED NOT NULL PRIMARY KEY AUTO_INCREMENT COMMENT '评论id',\
+video_id INT UNSIGNED NOT NULL COMMENT '被评论的视频id',\
+user_id INT UNSIGNED NOT NULL COMMENT '评论者的用户id', \
+comment TEXT NOT NULL COMMENT '评论内容，不能为空', \
+insert_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '评论创建时间', \
+foreign key (video_id) references tb_video(id), \
+foreign key (user_id) references tb_user(id) \
+);"
+
+// MySQL结果集的键值对
+typedef std::pair<MYSQL_RES*,std::mutex*> MYSQL_RES_PAIR;
 
 
     // 执行mysql语句，返回值为是否执行成功
@@ -63,16 +93,19 @@ typedef std::pair<MYSQL_RES*,std::mutex*> MYSQL_RES_PAIR;//结果集
         }
         mysql_set_character_set(mysql, "utf8");
         _log.info("MysqlInit", "mysql init success");
-        // 创建两个数据表
-        if(!MysqlQuery(mysql,VIDEO_TABLE_CREATE)){
-            _log.fatal("MysqlInit", "mysql VIDEO_TABLE_CREATE failed!");
-            return nullptr;
+        // 需要创建的表的sql数组
+        std::vector<std::string> table_create_arr = {
+            VIDEO_CATEGORY_TABLE_CREATE,VIDEO_TABLE_CREATE,
+            VIDEO_VIEWS_TABLE_CREATE,USER_TABLE_CREATE,VIDEO_COMMENT_TABLE_CREATE
+        };
+        // 创建数据表
+        for(auto& sql: table_create_arr){
+            if(!MysqlQuery(mysql,sql)){
+                _log.fatal("MysqlInit", "mysql table create failed!");
+                return nullptr;
+            }
         }
-        if(!MysqlQuery(mysql,VIEWS_TABLE_CREATE)){
-            _log.fatal("MysqlInit", "mysql VIEWS_TABLE_CREATE failed!");
-            return nullptr;
-        }
-        _log.info("MysqlInit", "tables created");
+        _log.info("MysqlInit", "all tables created");
         return mysql;
     }
     // 销毁mysql连接
