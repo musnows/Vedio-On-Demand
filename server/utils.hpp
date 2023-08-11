@@ -5,15 +5,21 @@
 #include <sstream>
 #include <memory>
 #include <string>
+#include <cstring>
+#include <unordered_map>
 #include <vector>
 #include <unistd.h>
 #include <sys/stat.h>
+// sha 256 需要的库
+#include <iomanip>
+#include <openssl/sha.h>
 // 需要注意jsoncpp的安装路径，查看/usr/include目录
 // Centos8上安装路径是/usr/include/json
 #include <json/json.h>
 // 测试在deepin上，jsoncpp的安装路径是/usr/include/jsoncpp/json
 // #include <jsoncpp/json/json.h>
 #include "mylog.hpp"
+
 
 namespace vod
 {
@@ -60,7 +66,7 @@ namespace vod
             }
             return st.st_size;
         } 
-        // 获取文件内容
+        // 获取文件内容，返回值为是否成功读取
         bool GetContent(std::string *body)
         {
             std::ifstream ifs;
@@ -172,6 +178,79 @@ namespace vod
             }
             return true;
         }
+    };
+
+    class HashUtil
+    {
+    public:
+            // 获取字符串的sha256值
+        static std::string String2SHA256(const std::string& str) 
+        {
+            // unsigned char能明确我们要处理的是无符号的一个字节0~255的数据
+            unsigned char hash[SHA256_DIGEST_LENGTH];
+            SHA256_CTX sha256;
+            SHA256_Init(&sha256);
+            SHA256_Update(&sha256, str.c_str(), str.size());
+            SHA256_Final(hash, &sha256);
+
+            std::stringstream ss;
+            for (int i = 0; i < SHA256_DIGEST_LENGTH; ++i) {
+                ss << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(hash[i]);
+            }
+
+            return ss.str();
+        }
+
+        // 生成指定位数的随机字符串
+        static std::string GenerateRandomString(size_t length = 10)
+        {
+            // 使用static修饰，则这个字符串只会被定义一次（第一次进入这个函数的时候被定义）
+            static const std::string random_charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+
+            std::string result_str;
+            for (int i = 0; i < length; i++)
+            {
+                int random_index = std::rand() % random_charset.size();
+                result_str += random_charset[random_index];
+            }
+
+            return result_str;
+        }
+
+        // 给定用户密码和盐的长度，创建加盐后的密码sha256，密码拼接在盐之后。
+        // 返回：加密后的sha256 和 盐
+        static std::pair<std::string,std::string> EncryptUserPasswd(const std::string & pass, size_t salt_length = 16)
+        {
+            std::srand(static_cast<unsigned int>(std::time(nullptr)));
+            // 获取一个盐
+            std::string random_str = GenerateRandomString(salt_length);
+            // 将盐和用户密码拼接
+            random_str += pass;
+            // 计算sha256
+            std::string hash_str = String2SHA256(random_str);
+            return {hash_str,random_str};
+        }
+
+        // 给定密码和盐，返回加密后的字符串
+        static std::string EncryptUserPasswd(const std::string & pass, std::string salt)
+        {
+            // 将盐和用户密码拼接
+            salt += pass;
+            // 计算sha256
+            std::string hash_str = String2SHA256(salt);
+            return hash_str;
+        }
+
+        // 获取一个文件的sha256
+        static std::string File2SHA256(const std::string & file_path)
+        {
+            std::string temp;
+            if(!FileUtil(file_path).GetContent(&temp)){
+                return ""; // 出现错误直接返回空
+            }
+            return String2SHA256(temp);
+        }
+
     };
 }
 

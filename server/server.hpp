@@ -19,6 +19,7 @@ namespace vod
 
     VideoTb* VideoTable; // 数据库类 父类指针
     Json::Value SvConf;  // 服务器的配置文件，因为服务器内函数都是static函数，必须放在类外头
+    std::unordered_map<std::string,std::pair<std::string,time_t>> EmailVerifyMap; // 用户邮箱和验证码的对应map
 
     // 检查端口是否被使用，被使用返回true
     bool IsPortUsed(size_t port) {
@@ -317,6 +318,57 @@ namespace vod
             rsp.body = R"({"code":0, "message":"更新点踩成功"})";
             rsp.set_header("Content-Type", "application/json");
             _log.info("Server.UpdateVideoDown", "update success! id: [%s]", video_id.c_str());
+        }
+
+        static void UserRegister(const httplib::Request &req, httplib::Response &rsp)
+        {
+            _log.info("Server.UserRegister", "get recv from %s", req.remote_addr.c_str());
+            httplib::MultipartFormData name = req.get_file_value("name");   // 用户昵称
+            httplib::MultipartFormData email = req.get_file_value("email");   // 用户邮箱
+            httplib::MultipartFormData avatar = req.get_file_value("avatar"); // 用户头像
+            httplib::MultipartFormData email_verify = req.get_file_value("email_verify"); // 用户邮箱验证码
+            httplib::MultipartFormData password1 = req.get_file_value("password1"); // 用户密码1
+            httplib::MultipartFormData password2 = req.get_file_value("password2"); // 用户密码2
+            rsp.status = 400; // 客户端出错
+            rsp.set_header("Content-Type", "application/json");
+            // 1.两次输入的密码不同
+            if(password1.content != password2.content)
+            {
+                rsp.body = R"({"code":400, "message":"两次输入的密码不匹配"})";
+                _log.warning("Server.UserRegister", "two password not match");
+                return;
+            }
+            // 2.邮箱没有在map里面找到，代表没有发送验证码
+            auto verify_temp = EmailVerifyMap.find(email.content);
+            if(verify_temp == EmailVerifyMap.end())
+            {
+                rsp.body = R"({"code":400, "message":"未匹配到邮箱信息，请重新获取验证码"})";
+                _log.warning("Server.UserRegister", "cant find email '%s' in map",email.content.c_str());
+                return;
+            }
+            // 3.找到了，看看超时没有
+            if(GetTimestamp() > ((verify_temp->second).second))
+            {
+                rsp.body = R"({"code":400, "message":"邮箱验证码超时失效"})";
+                _log.warning("Server.UserRegister", "email '%s' verify out of time",email.content.c_str());
+                return;
+            }
+            // 4.验证码没有超时，看看对不对
+            if((verify_temp->second).first != email_verify.content)
+            {
+                rsp.body = R"({"code":400, "message":"邮箱验证码错误"})";
+                _log.warning("Server.UserRegister", "email '%s' verify code err",email.content.c_str());
+                return;
+            }
+            // 走到这里代表验证码正确！
+            Json::Value user;
+            user["name"] = name.content;
+            user["email"] = email.content;
+            
+
+            VideoTable->UserCreate(user);
+
+
         }
 
     public:

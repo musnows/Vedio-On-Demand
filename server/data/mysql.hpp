@@ -37,10 +37,10 @@ foreign key (id) references tb_video(id) \
 #define USER_TABLE_CREATE "create table if not exists tb_user (\
 id INT UNSIGNED NOT NULL PRIMARY KEY AUTO_INCREMENT COMMENT '用户id',\
 name VARCHAR(30) NOT NULL COMMENT '用户名',\
-email VARCHAR(50) NOT NULL COMMENT '用户邮箱，入库前需确认邮箱有效', \
+email VARCHAR(50) NOT NULL UNIQUE COMMENT '用户邮箱，入库前需确认邮箱有效', \
 avatar VARCHAR(255) NOT NULL COMMENT '用户头像文件路径', \
 passwd_md5 VARCHAR(70) NOT NULL COMMENT '用户密码加盐后的sha256值', \
-passwd_salt VARCHAR(10) NOT NULL COMMENT '用户密码加盐值.密码拼接在盐后面再计算sha256', \
+passwd_salt VARCHAR(16) NOT NULL COMMENT '用户密码加盐值.密码拼接在盐后面再计算sha256', \
 insert_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '用户注册时间' \
 );"
 // 视频评论表
@@ -447,6 +447,94 @@ typedef std::pair<MYSQL_RES*,std::mutex*> MYSQL_RES_PAIR;
             }
             return MysqlQuery(_mysql,sql);
         }
+
+        // 用户创建，参数是输入型参数，包含用户的基本信息
+        // 走到这一步的用户键入的两个密码必须是匹配的，用户邮箱必须是有效的！
+        bool UserCreate(const Json::Value& user)
+        {   
+            // 插入用户的sql
+            #define INSERT_USER "insert into tb_user (name,email,avatar,passwd_md5,passwd_salt) values (%s,%s,%s,%s,%s);"
+            // 将用户密码加盐
+            auto tmp_pass = HashUtil::EncryptUserPasswd(user["passwd"].asString(),16);
+            std::string sql;
+            sql.resize(2048);//扩容
+            sprintf((char*)sql.c_str(),INSERT_VIDEO,
+                                    user["name"].asCString(),
+                                    user["email"].asCString(),
+                                    user["avatar"].asCString(),
+                                    tmp_pass.first.c_str(),
+                                    tmp_pass.second.c_str());
+            // 加锁
+            std::unique_lock<std::mutex> lock(_mutex);
+            return MysqlQuery(_mysql,sql);
+        }
+
+        // 通过邮箱查询用户
+        bool UserSelectEmail(const std::string& user_email,Json::Value *user_info)
+        { 
+            // 查询用户
+            #define SELECT_USER "select * from tb_user where email = %s;"
+            std::string sql;
+            sql.resize(1024);//扩容
+            sprintf((char*)sql.c_str(),SELECT_USER,user_email.c_str());
+            std::unique_lock<std::mutex> lock(_mutex);
+            if (!MysqlQuery(_mysql,sql)) {
+                _log.error("User SelectEmail","query failed");
+                return false;
+            }
+            // 保存结果集到本地
+            MYSQL_RES* res = mysql_store_result(_mysql);
+            if (res == nullptr)
+            {
+                mysql_free_result(res); // 释放结果集
+                _log.error("User SelectEmail","mysql store result failed | err[%u]: %s",mysql_errno(_mysql),mysql_error(_mysql));
+                return false;
+            }
+            int num_rows = mysql_num_rows(res); // 获取结果集行数
+            if(num_rows == 0)
+            {
+                mysql_free_result(res); // 释放结果集
+                _log.warning("User SelectEmail","no target user email '%s' found",user_email.c_str());
+                return false;
+            }
+
+            MYSQL_ROW row = mysql_fetch_row(res);
+            // 开始获取用户信息
+            (*user_info)["id"] = std::atoi(row[0]);
+            (*user_info)["name"] = row[1];
+            (*user_info)["email"] = row[2];
+            (*user_info)["avatar"] = row[3];
+            (*user_info)["passwd_md5"] = row[4];
+            (*user_info)["passwd_salt"] = row[5];
+            (*user_info)["insert_time"] = row[6];
+            mysql_free_result(res); // 释放结果集
+
+            _log.info("User SelectEmail","user email '%s' found",user_email.c_str());
+            return true;
+        }
+
+        // 用户密码验证，传入邮箱来查询用户，并通过输出型参数获取到用户的基本信息
+        bool UserPasswdCheck(const std::string& user_email,const std::string& user_pass,Json::Value *user_info)
+        {
+            // 先查询用户并获取到相关信息
+            if(!UserSelectEmail(user_email,user_info))
+            {
+                _log.error("User PasswdCheck","select user email '%s' failed",user_email.c_str());
+                return false;
+            }
+            // 找到用户了，验证用户信息是否正确
+            std::string tmp_pass = HashUtil::EncryptUserPasswd(user_pass,(*user_info)["passwd_salt"].asString());
+            if(tmp_pass != (*user_info)["passwd_md5"].asString()) // 二者不相等，密码错误
+            {
+                _log.info("User PasswdCheck","user '%s' enter wrong passwd",user_email.c_str());
+                return false;
+            }
+            // 密码正确
+            _log.info("User PasswdCheck","user '%s' passwd check pass",user_email.c_str());
+            return true; 
+        }
+
+
     };
     // 类外初始化为null
     VideoTbMysql* VideoTbMysql::_vtb_ptr = nullptr;

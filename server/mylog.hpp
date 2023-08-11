@@ -53,6 +53,13 @@ struct LogTime{
         strftime(time_str, 80, format_str.c_str(), info);
         return time_str;
     }
+    // 获取当前时间戳，传入的参数将会和当前时间戳相加
+    time_t GetTimestamp(time_t offset = 0)
+    {
+        time_t now = time(nullptr);
+        return now + offset;
+    }
+
     // 实例化一个简单的logger对象
     class Logger
     {

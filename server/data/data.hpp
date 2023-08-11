@@ -61,6 +61,9 @@ namespace vod{
         virtual bool SelectVideoView(const std::string & video_id,Json::Value * video_view,bool update_view=false) = 0;
         virtual bool UpdateVideoView(const std::string& video_id,size_t video_view) = 0;
         virtual bool UpdateVideoUpDown(const std::string& video_id,bool up_flag = true) = 0;
+        virtual bool UserCreate(const Json::Value& user) = 0;
+        virtual bool UserSelectEmail(const std::string& user_email,Json::Value *user_info) = 0;
+        virtual bool UserPasswdCheck(const std::string& user_email,const std::string& user_pass,Json::Value *user_info) =0;
     };
     std::mutex VideoTb::_single_mutex; // 初始化
 }

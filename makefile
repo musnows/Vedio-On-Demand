@@ -3,7 +3,7 @@ main:main.cpp ./server/
 
 .PHONY:test
 test:
-	./vod-server
+	g++ main.cpp -o vod-server -lmysqlclient -ljsoncpp -lpthread -lsqlite3 && ./vod-server
 
 .PHONY:run
 run:
