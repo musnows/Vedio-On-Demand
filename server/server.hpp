@@ -145,7 +145,7 @@ namespace vod
                 rsp.status = 500; // 服务端出错
                 rsp.body = R"({"code":500, "message":"视频封面图片文件存储失败"})";
                 rsp.set_header("Content-Type", "application/json");
-                _log.error("Server.Insert", "write cover image file err! path:%s", video_path.c_str());
+                _log.error("Server.Insert", "write cover image file err! path:%s", image_path.c_str());
                 return;
             }
             _log.info("Server.Insert", "write file video:'%s' cover:'%s'", video_path.c_str(), image_path.c_str());
@@ -323,10 +323,10 @@ namespace vod
         static void UserRegister(const httplib::Request &req, httplib::Response &rsp)
         {
             _log.info("Server.UserRegister", "get recv from %s", req.remote_addr.c_str());
-            httplib::MultipartFormData name = req.get_file_value("name");   // 用户昵称
-            httplib::MultipartFormData email = req.get_file_value("email");   // 用户邮箱
-            httplib::MultipartFormData avatar = req.get_file_value("avatar"); // 用户头像
-            httplib::MultipartFormData email_verify = req.get_file_value("email_verify"); // 用户邮箱验证码
+            httplib::MultipartFormData name = req.get_file_value("username");   // 用户昵称
+            httplib::MultipartFormData email = req.get_file_value("useremail");   // 用户邮箱
+            httplib::MultipartFormData avatar = req.get_file_value("useravatar"); // 用户头像
+            httplib::MultipartFormData email_verify = req.get_file_value("useremail_verify"); // 用户邮箱验证码
             httplib::MultipartFormData password1 = req.get_file_value("password1"); // 用户密码1
             httplib::MultipartFormData password2 = req.get_file_value("password2"); // 用户密码2
             rsp.status = 400; // 客户端出错
@@ -364,11 +364,28 @@ namespace vod
             Json::Value user;
             user["name"] = name.content;
             user["email"] = email.content;
-            
-
-            VideoTable->UserCreate(user);
-
-
+            // 保存用户头像
+            std::string root = SvConf["root"].asString();
+            // 图片计算sha256值作为文件路径
+            std::string image_path = SvConf["avatar_root"].asString() + HashUtil::String2SHA256(avatar.content) + FileUtil(avatar.filename).GetFileExtension(); 
+            // 将文件存到本地
+            if (!FileUtil(root + image_path).SetContent(avatar.content))
+            {
+                rsp.status = 500; // 服务端出错
+                rsp.body = R"({"code":500, "message":"视频封面图片文件存储失败"})";
+                _log.error("Server.UserRegister", "write avatar image file err! path:%s", image_path.c_str());
+                return;
+            }
+            user["avatar"] = image_path; // 存放文件路径
+            user["passwd"] = password1.content; // 用户密码
+            // 写入数据库
+            if (!VideoTable->UserCreate(user))
+                return MysqlErrHandler("Server.UserRegister", rsp);
+            // 用户注册成功！
+            rsp.status = 200;
+            rsp.body = R"({"code":0, "message":"用户注册成功"})";
+            _log.info("Server.UserRegister", "UserRegister success! [%s]", email.content.c_str());
+            return ;
         }
 
     public:
@@ -422,6 +439,9 @@ namespace vod
             _srv.Get("/video/([A-Za-z0-9]+)", GetOne);
             _srv.Get("/video", GetAll);
             _srv.Post("/video", Insert);
+            // 用户相关
+            _srv.Post("/usr/register", UserRegister);
+
             // 3.指定端口，启动服务器
             //   绑定之前，先检查端口是否被使用
             if(IsPortUsed(_port)){
