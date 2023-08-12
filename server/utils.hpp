@@ -212,16 +212,24 @@ namespace vod
         }
 
         // 生成指定位数的随机字符串
-        static std::string GenerateRandomString(size_t length = 10)
+        // 如果charset为空，则会在大小写字母和数字中生成随机字符串
+        static std::string GenerateRandomString(size_t length = 10,const std::string& charset = "")
         {
+            std::srand(static_cast<unsigned int>(std::time(nullptr)));// 初始化随机数
             // 使用static修饰，则这个字符串只会被定义一次（第一次进入这个函数的时候被定义）
             static const std::string random_charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-
+            // 根据参数或者默认的字符集来设置目标字符集
+            std::string target_charset = random_charset;
+            if(charset != "") // 使用的时候传入了字符集
+            {
+                target_charset = charset;
+            }
+            // 开始生成随机数
             std::string result_str;
             for (int i = 0; i < length; i++)
             {
-                int random_index = std::rand() % random_charset.size();
-                result_str += random_charset[random_index];
+                int random_index = std::rand() % target_charset.size();
+                result_str += target_charset[random_index];
             }
 
             return result_str;
