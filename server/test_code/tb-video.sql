@@ -15,3 +15,7 @@ create table if not exists tb_views(
     view int NOT NULL DEFAULT 0 comment '视频观看量',
     UNIQUE(id)
 );
+
+-- 默认用户0和默认分组0
+insert into tb_user values (1,'默认用户','test@example.com','./default_avatar.png','12312','123123',NOW());
+insert into tb_category values (1,'默认分类');
