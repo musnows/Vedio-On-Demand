@@ -22,8 +22,10 @@ info TEXT NOT NULL DEFAULT '' COMMENT '视频简介', \
 video VARCHAR(255) NOT NULL COMMENT '视频文件链接', \
 cover VARCHAR(255) NOT NULL COMMENT '视频封面链接', \
 category INT UNSIGNED NOT NULL DEFAULT 0 COMMENT '视频分类',\
+user_id  INT UNSIGNED NOT NULL COMMENT '上传视频的用户id',\
 insert_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '视频创建时间', \
-foreign key (category) references tb_category(id) \
+foreign key (category) references tb_category(id), \
+foreign key (user_id) references tb_user(id) \
 );"
 // 视频点赞信息数据表
 #define VIDEO_VIEWS_TABLE_CREATE "create table if not exists tb_views (\
