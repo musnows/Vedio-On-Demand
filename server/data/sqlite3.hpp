@@ -386,6 +386,19 @@ view int NOT NULL DEFAULT 0);"
             }
             return SqliteQuery(_db,sql);
         }
+        // 暂时留空
+        virtual bool UserCreate(const Json::Value& user)
+        {
+            return false;
+        }
+        virtual bool UserSelectEmail(const std::string& user_email,Json::Value *user_info)
+        {
+            return false;
+        }
+        virtual bool UserPasswdCheck(const std::string& user_email,const std::string& user_pass,Json::Value *user_info)
+        {
+            return false;
+        }
     };
     // 类外初始化为null
     VideoTbSqlite* VideoTbSqlite::_vtb_ptr = nullptr;
