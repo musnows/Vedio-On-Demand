@@ -3,6 +3,7 @@
 #include "httplib.h"
 #include "data/mysql.hpp"
 #include "data/sqlite3.hpp"
+#include "email/mail.h"
 
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -16,9 +17,13 @@ namespace vod
 #define NAME_TIME_FORMAT "%y%m%d%H%M%S"      // 给文件命名时所用的时间格式
 #define DEFAULT_VEDIO_INFO "这里什么都没有~" // 默认视频简介
 #define DEFAULT_VEDIO_COVER "default.png"    // 默认视频封面
+#define EMAIL_VERIFY_TIME  900 // 邮箱验证有效时间为15分钟
+#define EMAIL_VERIFY_INTERVAL  60 // 邮箱验证吗发送间隔为60秒
+#define EMAIL_VERIFY_HTML_PATH "./server/email/email_verify.html"
 
     VideoTb* VideoTable; // 数据库类 父类指针
     Json::Value SvConf;  // 服务器的配置文件，因为服务器内函数都是static函数，必须放在类外头
+    Json::Value EmailConf;  // 邮箱的配置文件，因为服务器内函数都是static函数，必须放在类外头
     std::unordered_map<std::string,std::pair<std::string,time_t>> EmailVerifyMap; // 用户邮箱和验证码的对应map
 
     // 检查端口是否被使用，被使用返回true
@@ -41,6 +46,50 @@ namespace vod
         close(sock);
         // 如果返回值不为0，代表端口已经被使用
         return bind_result != 0; 
+    }
+    // 发送邮箱验证码，返回值为是否成功发送
+    bool EmailVerifySend(const std::string & target_email,const std::string& verify_code)
+    {
+        if(verify_code.size() != 6)
+        {
+            _log.error("EmailVerifySend","verify_code sz != 6"); // 验证码的大小必须严格为6位 
+            return false;
+        }
+        // stmp发送方和密钥
+        std::string from = EmailConf["user"].asString();
+        std::string passs = EmailConf["passwd"].asString(); //这里替换成自己的授权码
+        // 标题
+        std::string subject = "【视频点播系统】邮箱验证码：";
+        subject += verify_code;
+        // 内容
+        std::string msg_body;
+        if(!FileUtil(EMAIL_VERIFY_HTML_PATH).GetContent(&msg_body)) // 获取html文件内容
+        {
+            _log.error("EmailVerifySend","open email_verify.html failed!"); // 无法打开文件
+            return false;
+        }
+        // 修改邮件内容里面的验证码
+        size_t verfiy_start_pos = msg_body.find("{123456}"); // 查询占位符的位置
+        if (verfiy_start_pos == std::string::npos) // 无法找到占位符
+        {
+            _log.error("EmailVerifySend","cant find verify_code pos in html"); 
+            return false;
+        }
+        // 替换验证码
+        msg_body.replace(verfiy_start_pos, 8, verify_code); // 将pos位置往后8位替换成目标验证码
+
+        std::vector<std::string> send_to; //发送列表
+        send_to.push_back(target_email); // 发送的目标用户
+
+        SimpleSslSmtpEmail m_ssl_mail(EmailConf["stmp"].asString(),EmailConf["port"].asString()); // 服务器使用ssl
+        SmtpBase *base = &m_ssl_mail;
+        // 发送
+        if(base->SendEmail(from, passs,send_to,subject,msg_body,std::vector<std::string>(),std::vector<std::string>()) != 0)
+        {
+            _log.error("EmailVerifySend","send email failed!"); // 发送失败
+            return false;
+        }
+        return true;
     }
 
     // 服务器端
@@ -347,7 +396,7 @@ namespace vod
                 return;
             }
             // 3.找到了，看看超时没有
-            if(GetTimestamp() > ((verify_temp->second).second))
+            if(GetTimestamp() > ((verify_temp->second).second + EMAIL_VERIFY_TIME))
             {
                 rsp.body = R"({"code":400, "message":"邮箱验证码超时失效"})";
                 _log.warning("Server.UserRegister", "email '%s' verify out of time",email.content.c_str());
@@ -388,6 +437,52 @@ namespace vod
             return ;
         }
 
+        static void UserEmailVerify(const httplib::Request &req, httplib::Response &rsp)
+        {
+            _log.info("Server.UserEmailVerify", "get recv from %s", req.remote_addr.c_str());
+            rsp.set_header("Content-Type", "application/json");
+            httplib::MultipartFormData email = req.get_file_value("useremail");   // 用户邮箱
+            std::string user_email = email.content; // 邮箱
+            // 1.先判断map里面有没有这个邮箱，如果有，判断时间间隔
+            auto email_it = EmailVerifyMap.find(user_email);
+            if(email_it != EmailVerifyMap.end())
+            {
+                // 没有超过时间间隔，不能发送邮箱
+                if((GetTimestamp() - ((email_it->second).second)) <= EMAIL_VERIFY_INTERVAL)
+                {
+                    rsp.status = 403;
+                    rsp.body = R"({"code":403, "message":"邮箱验证码发送频率限制！"})";
+                    _log.error("Server.UserEmailVerify", "rate limit for email verify [%s]", user_email.c_str());
+                    return;
+                }
+            }
+            // 2.判断邮箱格式合法性：没有找到@或者没有找到. 代表邮箱非法
+            if(user_email.find('@') == user_email.npos || user_email.find('.') == user_email.npos) 
+            {
+                rsp.status = 400;
+                rsp.body = R"({"code":400, "message":"邮箱格式不正确"})";
+                _log.error("Server.UserEmailVerify", "Incorrect email format [%s]", user_email.c_str());
+                return;
+            }
+            // 3.邮箱格式正确，尝试发送验证码邮件
+            //  1.先获取一个验证码
+            std::string verify_code = HashUtil::GenerateRandomString(6,"0123456789");
+            //  2.写入map
+            EmailVerifyMap.insert({user_email,{verify_code,GetTimestamp()}});
+            //  3.发送邮件
+            if(!EmailVerifySend(user_email,verify_code))
+            {   
+                rsp.status = 503;
+                rsp.body = R"({"code":503, "message":"发送邮件失败"})";
+                _log.error("Server.UserEmailVerify", "send email failed [%s]", user_email.c_str());
+                return;
+            } 
+            // 4.发送成功，返回正确
+            rsp.status = 200;
+            rsp.body = R"({"code":0, "message":"邮箱验证码发送成功"})";
+            _log.info("Server.UserEmailVerify", "send email verify success! [%s]", email.content.c_str());
+        }
+
     public:
         Server(size_t port = DEFAULT_SERVER_PORT)
             : _port(port)
@@ -402,6 +497,7 @@ namespace vod
             }
             JsonUtil::UnSerialize(tmp_str, &conf);
             SvConf = conf["web"]; // 赋值web的json格式给服务器，作为服务器配置
+            EmailConf = conf["email"]; // stmp配置
             // 根据配置文件中的选择，实例化对应的单例
             if(conf["sql"]["used"].asString() == "mysql"){
                 VideoTable = mysql::VideoTbMysql::GetInstance();//获取单例
@@ -441,6 +537,7 @@ namespace vod
             _srv.Post("/video", Insert);
             // 用户相关
             _srv.Post("/usr/register", UserRegister);
+            _srv.Post("/usr/email/verify", UserEmailVerify); // 发送验证邮件
 
             // 3.指定端口，启动服务器
             //   绑定之前，先检查端口是否被使用

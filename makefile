@@ -1,9 +1,9 @@
 main:main.cpp ./server/
-	g++ main.cpp -o vod-server -lmysqlclient -ljsoncpp -lpthread -lsqlite3
+	g++ main.cpp ./server/email/mail.cpp -o vod-server -lmysqlclient -ljsoncpp -lpthread -lsqlite3 -lssl -lcrypto
 
 .PHONY:test
 test:
-	g++ main.cpp -o vod-server -lmysqlclient -ljsoncpp -lpthread -lsqlite3 && ./vod-server
+	./vod-server
 
 .PHONY:run
 run:

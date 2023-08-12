@@ -17,5 +17,11 @@
         "root":"./www",
         "video_root":"/static/video/",
         "image_root":"/static/cover/"
+    },
+    "email":{
+        "stmp":"",
+        "port":"",
+        "user":"",
+        "passwd":""
     }
 }
