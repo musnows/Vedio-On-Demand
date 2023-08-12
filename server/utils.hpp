@@ -242,10 +242,8 @@ namespace vod
             std::srand(static_cast<unsigned int>(std::time(nullptr)));
             // 获取一个盐
             std::string random_str = GenerateRandomString(salt_length);
-            // 将盐和用户密码拼接
-            random_str += pass;
-            // 计算sha256
-            std::string hash_str = String2SHA256(random_str);
+            // 将盐和用户密码拼接计算sha256
+            std::string hash_str = String2SHA256(random_str + pass);
             return {hash_str,random_str};
         }
 
@@ -255,8 +253,7 @@ namespace vod
             // 将盐和用户密码拼接
             salt += pass;
             // 计算sha256
-            std::string hash_str = String2SHA256(salt);
-            return hash_str;
+            return String2SHA256(salt);
         }
 
         // 获取一个文件的sha256

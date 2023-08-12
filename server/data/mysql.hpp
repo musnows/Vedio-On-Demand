@@ -455,12 +455,12 @@ typedef std::pair<MYSQL_RES*,std::mutex*> MYSQL_RES_PAIR;
         bool UserCreate(const Json::Value& user)
         {   
             // 插入用户的sql
-            #define INSERT_USER "insert into tb_user (name,email,avatar,passwd_md5,passwd_salt) values (%s,%s,%s,%s,%s);"
+            #define INSERT_USER "insert into tb_user (name,email,avatar,passwd_md5,passwd_salt) values ('%s','%s','%s','%s','%s');"
             // 将用户密码加盐
             auto tmp_pass = HashUtil::EncryptUserPasswd(user["passwd"].asString(),16);
             std::string sql;
             sql.resize(2048);//扩容
-            sprintf((char*)sql.c_str(),INSERT_VIDEO,
+            sprintf((char*)sql.c_str(),INSERT_USER,
                                     user["name"].asCString(),
                                     user["email"].asCString(),
                                     user["avatar"].asCString(),
@@ -475,7 +475,7 @@ typedef std::pair<MYSQL_RES*,std::mutex*> MYSQL_RES_PAIR;
         bool UserSelectEmail(const std::string& user_email,Json::Value *user_info)
         { 
             // 查询用户
-            #define SELECT_USER "select * from tb_user where email = %s;"
+            #define SELECT_USER "select * from tb_user where email = '%s';"
             std::string sql;
             sql.resize(1024);//扩容
             sprintf((char*)sql.c_str(),SELECT_USER,user_email.c_str());

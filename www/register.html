@@ -168,7 +168,7 @@
 
 <script>
     document.getElementById("confirm-password").addEventListener("input", validatePassword);
-
+    // 验证两个密码是否相同
     function validatePassword() {
         var password = document.getElementById("password").value;
         var confirmPassword = document.getElementById("confirm-password").value;
@@ -205,38 +205,81 @@
         }
     });
 
-    // 监听发送邮件按钮的点击事件
-    sendEmailButton.addEventListener('click', function () {
-        event.preventDefault(); // 阻止表单默认提交行为
-        // 在这里执行发送邮件的相关逻辑
-        const useremail = useremailInput.value.trim();
+    function sleep (time) {
+        return new Promise((resolve) => setTimeout(resolve, time));
+    }
 
-        // 使用正则表达式验证邮箱格式
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        const isValidEmail = emailRegex.test(useremail);
-
-        if (!isValidEmail) {
-            // 如果邮箱格式不正确，弹窗提示用户
-            alert("请输入有效的邮箱地址");
-            return;
-        }
-        
-        // 发送请求到/usr/email/verify接口并处理响应
-        fetch('/usr/email/verify', {
-            method: 'POST',
-            // "useremail": "邮箱"
-            body: JSON.stringify({ useremail }),
-            headers: { 'Content-Type': 'application/json' }
-        })
-            .then(response => response.json())
-            .then(data => {
-                // 处理接口返回的数据
-                console.log(data);
+    // 发送注册操作
+    document.addEventListener("DOMContentLoaded", function() {
+        var form = document.querySelector("form[data-abide]");
+        var registerButton = document.getElementById("register-btn");
+        var sendEmailButton = document.getElementById("send-email-button");
+    
+        form.addEventListener("submit", function(event) {
+            event.preventDefault(); // 阻止默认表单提交行为
+    
+            // 获取表单数据
+            var formData = new FormData(form);
+    
+            // 发送 POST 请求到 /usr/rigster 接口
+            fetch("/usr/register", {
+                method: "POST",
+                body: formData
             })
+            .then(response => {
+                if (response.ok) {
+                    // 注册成功
+                    window.alert("注册成功！");
+                    // 睡1000ms,之后执行下面的内容
+                    sleep(1000).then(() => {
+                        window.location.href = "/login.html";
+                    })
+                } else {
+                    // 其他状态码处理
+                    throw new Error("注册失败");
+            }})
+            .catch(error => {
+                console.error("错误:", error);
+            });
+        });
+
+        // 监听发送邮件按钮的点击事件
+        sendEmailButton.addEventListener('click', function () {
+            event.preventDefault(); // 阻止表单默认提交行为
+            // 在这里执行发送邮件的相关逻辑
+            const useremail = useremailInput.value.trim();
+            // 邮箱为空，提示用户
+            if (useremail.value === "") {
+                alert("请输入您的邮箱地址。"); // Show alert message
+                return;
+            }
+            // 使用正则表达式验证邮箱格式
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            const isValidEmail = emailRegex.test(useremail);
+            // 如果邮箱格式不正确，弹窗提示用户
+            if (!isValidEmail) {
+                alert("请输入有效的邮箱地址。");
+                return;
+            }
+            // 获取表单数据
+            var formData = new FormData(form);
+            // 发送请求到/usr/email/verify接口并处理响应
+            fetch('/usr/email/verify', {
+                method: 'POST',
+                body: formData,
+            })
+            .then(response => {
+                if (response.ok) {
+                    window.alert("邮箱验证码已发送！");
+                } else {
+                    // 其他状态码处理
+                    throw new Error("邮箱验证码发送失败");
+            }})
             .catch(error => {
                 // 处理请求错误
                 console.error(error);
             });
+        });
     });
 
 </script>
