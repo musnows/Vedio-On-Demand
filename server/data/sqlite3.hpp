@@ -395,7 +395,19 @@ view int NOT NULL DEFAULT 0);"
         {
             return false;
         }
+        virtual bool UserSelectId(size_t user_id,Json::Value *user_info)
+        {
+            return false;
+        }
         virtual bool UserPasswdCheck(const std::string& user_email,const std::string& user_pass,Json::Value *user_info)
+        {
+            return false;
+        }
+        virtual bool UserSessionGet(size_t user_id,const std::string& user_ip,std::string* const session_id)
+        {
+            return false;
+        }
+        virtual bool UserSessionCheck(const std::string& session_id,Json::Value *user_info) 
         {
             return false;
         }

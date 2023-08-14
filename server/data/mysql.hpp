@@ -55,6 +55,14 @@ insert_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '评论创建时间', \
 foreign key (video_id) references tb_video(id), \
 foreign key (user_id) references tb_user(id) \
 );"
+// 用户session表
+#define USER_SESSION_TABLE_CREATE "create table if not exists tb_session( \
+id VARCHAR(32) NOT NULL PRIMARY KEY COMMENT 'session id',\
+user_id INT UNSIGNED NOT NULL COMMENT '用户id',\
+user_ip VARCHAR(40) NOT NULL COMMENT '用户来源ip',\
+insert_time BIGINT UNSIGNED NOT NULL DEFAULT UNIX_TIMESTAMP() COMMENT 'session创建的时间戳',\
+foreign key (user_id) references tb_user(id) \
+);"
 
 // MySQL结果集的键值对
 typedef std::pair<MYSQL_RES*,std::mutex*> MYSQL_RES_PAIR;
@@ -98,7 +106,7 @@ typedef std::pair<MYSQL_RES*,std::mutex*> MYSQL_RES_PAIR;
         // 需要创建的表的sql数组
         std::vector<std::string> table_create_arr = {
             VIDEO_CATEGORY_TABLE_CREATE,USER_TABLE_CREATE,VIDEO_TABLE_CREATE,
-            VIDEO_VIEWS_TABLE_CREATE,VIDEO_COMMENT_TABLE_CREATE
+            VIDEO_VIEWS_TABLE_CREATE,VIDEO_COMMENT_TABLE_CREATE,USER_SESSION_TABLE_CREATE
         };
         // 创建数据表
         for(auto& sql: table_create_arr){
@@ -137,6 +145,7 @@ typedef std::pair<MYSQL_RES*,std::mutex*> MYSQL_RES_PAIR;
     {
     private:
         MYSQL *_mysql;     // 一个对象就是一个客户端，管理一张表
+        std::unordered_map<std::string,std::pair<size_t,time_t>> _session_map; // sid和用户id/插入时间的对照表
         static VideoTbMysql* _vtb_ptr; // 单例类指针
         // std::mutex _mutex; // 使用C++的线程，而不直接使用linux的pthread_mutex
         
@@ -475,10 +484,10 @@ typedef std::pair<MYSQL_RES*,std::mutex*> MYSQL_RES_PAIR;
         bool UserSelectEmail(const std::string& user_email,Json::Value *user_info)
         { 
             // 查询用户
-            #define SELECT_USER "select * from tb_user where email = '%s';"
+            #define SELECT_USER_EMAIL "select * from tb_user where email = '%s';"
             std::string sql;
             sql.resize(1024);//扩容
-            sprintf((char*)sql.c_str(),SELECT_USER,user_email.c_str());
+            sprintf((char*)sql.c_str(),SELECT_USER_EMAIL,user_email.c_str());
             std::unique_lock<std::mutex> lock(_mutex);
             if (!MysqlQuery(_mysql,sql)) {
                 _log.error("User SelectEmail","query failed");
@@ -515,6 +524,50 @@ typedef std::pair<MYSQL_RES*,std::mutex*> MYSQL_RES_PAIR;
             return true;
         }
 
+        // 通过用户id查询用户
+        bool UserSelectId(size_t user_id,Json::Value *user_info)
+        { 
+            // 查询用户
+            #define SELECT_USER_ID "select * from tb_user where id = %u;"
+            std::string sql;
+            sql.resize(1024);//扩容
+            sprintf((char*)sql.c_str(),SELECT_USER_ID,user_id);
+            std::unique_lock<std::mutex> lock(_mutex);
+            if (!MysqlQuery(_mysql,sql)) {
+                _log.error("User SelectId","query failed");
+                return false;
+            }
+            // 保存结果集到本地
+            MYSQL_RES* res = mysql_store_result(_mysql);
+            if (res == nullptr)
+            {
+                mysql_free_result(res); // 释放结果集
+                _log.error("User SelectId","mysql store result failed | err[%u]: %s",mysql_errno(_mysql),mysql_error(_mysql));
+                return false;
+            }
+            int num_rows = mysql_num_rows(res); // 获取结果集行数
+            if(num_rows == 0)
+            {
+                mysql_free_result(res); // 释放结果集
+                _log.warning("User SelectId","no target user id '%u' found",user_id);
+                return false;
+            }
+
+            MYSQL_ROW row = mysql_fetch_row(res);
+            // 开始获取用户信息
+            (*user_info)["id"] = std::atoi(row[0]);
+            (*user_info)["name"] = row[1];
+            (*user_info)["email"] = row[2];
+            (*user_info)["avatar"] = row[3];
+            (*user_info)["passwd_md5"] = row[4];
+            (*user_info)["passwd_salt"] = row[5];
+            (*user_info)["insert_time"] = row[6];
+            mysql_free_result(res); // 释放结果集
+
+            _log.info("User SelectId","user id '%u' found",user_id);
+            return true;
+        }
+
         // 用户密码验证，传入邮箱来查询用户，并通过输出型参数获取到用户的基本信息
         bool UserPasswdCheck(const std::string& user_email,const std::string& user_pass,Json::Value *user_info)
         {
@@ -535,7 +588,93 @@ typedef std::pair<MYSQL_RES*,std::mutex*> MYSQL_RES_PAIR;
             _log.info("User PasswdCheck","user '%s' passwd check pass",user_email.c_str());
             return true; 
         }
-
+        // 获取用户seesion id字符串，必须要保证用户id存在于表中才能获取sid
+        bool UserSessionGet(size_t user_id,const std::string& user_ip,std::string* const session_id)
+        {
+            #define INSERT_SESSION "insert into tb_session (id,user_id,user_ip) values ('%s',%u,'%s');"
+            (*session_id) = HashUtil::GenerateRandomString(32); // 直接生成一个随机字符串作为id
+            // 执行sql
+            std::string sql;
+            sql.resize(2048); // 扩容
+            sprintf((char*)sql.c_str(),INSERT_SESSION,
+                                        session_id->c_str(),
+                                        user_id,
+                                        user_ip.c_str());
+            // 加锁
+            std::unique_lock<std::mutex> lock(_mutex);
+            // 写入map
+            _session_map.insert({(*session_id),{user_id,GetTimestamp()}}); // 插入到map中
+            // 执行sql
+            return MysqlQuery(_mysql,sql);
+        }
+        // 验证session id是否有效，有效，返回用户信息
+        bool UserSessionCheck(const std::string& session_id,Json::Value *user_info)
+        {
+            time_t cur_timestamp = GetTimestamp();
+            size_t user_id = 0;
+            // 先检查map里面是否有这个参数
+            std::unique_lock<std::mutex> lock(_mutex);
+            auto it = _session_map.find(session_id);
+            // map里面有，但是失效了
+            if((it != _session_map.end()) && (cur_timestamp >= ((it->second).second + SESSION_ID_OUTDATE)))  
+            {
+                _log.info("UserSessionCheck","session outdate | map");
+                return false;
+            }
+            else if(it != _session_map.end()) // map里面有，没有失效
+            {
+                user_id = (it->second).first;
+                _log.info("UserSessionCheck","session good | map");
+            }
+            else // map里面么有，查询数据库
+            {   
+                #define SELECT_SESSION "select * from tb_session where id = '%s';"
+                std::string sql;
+                sql.resize(1024);//扩容
+                sprintf((char*)sql.c_str(),SELECT_SESSION,session_id.c_str());
+                if (!MysqlQuery(_mysql,sql)) {
+                    _log.error("UserSessionCheck","query session '%s' failed",session_id.c_str());
+                    return false;
+                }
+                // 保存结果集到本地
+                MYSQL_RES* res = mysql_store_result(_mysql);
+                if (res == nullptr)
+                {
+                    mysql_free_result(res); // 释放结果集
+                    _log.error("UserSessionCheck","mysql store result failed | err[%u]: %s",mysql_errno(_mysql),mysql_error(_mysql));
+                    return false;
+                }
+                int num_rows = mysql_num_rows(res); // 获取结果集行数
+                if(num_rows == 0)
+                {
+                    mysql_free_result(res); // 释放结果集
+                    _log.warning("UserSessionCheck","session '%s' not found in mysql",session_id.c_str());
+                    return false;
+                }
+                // 找到了
+                MYSQL_ROW row = mysql_fetch_row(res);
+                // 开始获取session信息
+                time_t insert_time = std::atoi(row[3]); // 插入时间
+                if(cur_timestamp >= (insert_time+SESSION_ID_OUTDATE))
+                {
+                    _log.info("UserSessionCheck","session outdate | mysql");
+                    return false;
+                }
+                // 没有过期
+                user_id = std::atoi(row[1]); // 获取用户id
+                mysql_free_result(res); // 释放结果集
+            }
+            // 检查用户id有效性
+            if(user_id == 0) return false;// 用户id为0代表失效
+            // 通过获取到的用户id来查询数据库
+            if(!UserSelectId(user_id,user_info))
+            {
+                _log.error("UserSessionCheck","query user '%u' failed",user_id);
+                return false;
+            }
+            // 搞定了
+            return true;
+        }
 
     };
     // 类外初始化为null

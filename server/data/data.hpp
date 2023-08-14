@@ -5,6 +5,7 @@
 
 namespace vod{
 #define VEDIO_INFO_MAX_LEN 4096 //视频简介不能过长
+#define SESSION_ID_OUTDATE 3600 // session超时时间为一小时
     // 视频数据库父类（抽象类）
     class VideoTb{
     protected:
@@ -63,7 +64,10 @@ namespace vod{
         virtual bool UpdateVideoUpDown(const std::string& video_id,bool up_flag = true) = 0;
         virtual bool UserCreate(const Json::Value& user) = 0;
         virtual bool UserSelectEmail(const std::string& user_email,Json::Value *user_info) = 0;
+        virtual bool UserSelectId(size_t user_id,Json::Value *user_info) =0 ;
         virtual bool UserPasswdCheck(const std::string& user_email,const std::string& user_pass,Json::Value *user_info) =0;
+        virtual bool UserSessionGet(size_t user_id,const std::string& user_ip,std::string* const session_id) = 0;
+        virtual bool UserSessionCheck(const std::string& session_id,Json::Value *user_info) = 0;
     };
     std::mutex VideoTb::_single_mutex; // 初始化
 }
