@@ -109,6 +109,21 @@ namespace vod
 
         return cookie.substr(start, end - start); // 提取值并返回
     }
+    // 从req中获取session_id;
+    // 如果有cookie但sid为空，代表cookie中不包含session id
+    // 返回值：<请求是否拥有cookie,session_id> 
+    std::pair<bool,std::string> GetSessionIdFromCookie(const httplib::Request &req)
+    {
+        bool has_cookie = false;
+        std::string session_id="";
+        if (req.has_header("Cookie")) 
+        {
+            has_cookie = true;
+            std::string cookie_str = req.get_header_value("Cookie");
+            session_id = GetCookieValue(cookie_str,USER_COOKIE_KEY);
+        }
+        return {has_cookie,session_id};
+    }
 
     // 服务器端
     class Server
@@ -557,10 +572,10 @@ namespace vod
             rsp.set_header("Content-Type", "application/json");
             rsp.status = 403; // 暂时认为不行
             // 判断header是否拥有cookie
-            if (req.has_header("Cookie")) 
+            auto sid_ret = GetSessionIdFromCookie(req);
+            if (sid_ret.first) 
             {
-                std::string cookie_str = req.get_header_value("Cookie");
-                std::string session_id = GetCookieValue(cookie_str,USER_COOKIE_KEY);
+                std::string session_id = sid_ret.second;
                 if(session_id == "" || session_id.size() != SESSION_ID_SIZE) // 没有找到session id
                 {
                     rsp.body = R"({"code":403, "message":"cookie中不存在有效session_id"})";
