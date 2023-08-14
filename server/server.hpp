@@ -434,7 +434,9 @@ namespace vod
                 _log.warning("Server.UserRegister", "email '%s' verify code err",email.content.c_str());
                 return;
             }
-            // 走到这里代表验证码正确！
+            // 走到这里代表验证码正确！将这个邮箱从map中删除
+            EmailVerifyMap.erase(verify_temp->first);
+            // 创建用户信息json
             Json::Value user;
             user["name"] = name.content;
             user["email"] = email.content;
@@ -461,7 +463,7 @@ namespace vod
             _log.info("Server.UserRegister", "UserRegister success! [%s]", email.content.c_str());
             return ;
         }
-
+        // 邮箱验证
         static void UserEmailVerify(const httplib::Request &req, httplib::Response &rsp)
         {
             _log.info("Server.UserEmailVerify", "get recv from %s", req.remote_addr.c_str());
@@ -527,11 +529,24 @@ namespace vod
             // 删除密码
             user.removeMember("passwd_salt");
             user.removeMember("passwd_md5");
-            // 序列化作为body
+            // 序列化用户信息作为body
             JsonUtil::Serialize(user, &rsp.body);
+            // 获取sid
+            std::string session_id;
+            if(!VideoTable->UserSessionGet(user["id"].asUInt(),req.remote_addr,&session_id))
+            {
+                rsp.status = 503;
+                rsp.body = R"({"code":503, "message":"获取session id失败"})";
+                _log.error("Server.UserLogin", "get session id failed [%s]", user["email"].asCString());
+                return;
+            }
+            // 设置状态码和cookie
             rsp.status = 200;
-            // 设置cookie
-            rsp.set_header("Set-Cookie","vod_sid=123456; path=/");
+            std::string cookie_str = USER_COOKIE_KEY;
+            cookie_str += "=";
+            cookie_str += session_id;
+            cookie_str += "; path=/";
+            rsp.set_header("Set-Cookie",cookie_str);
             _log.info("Server.UserLogin", "login success [%s]", email.content.c_str());
         }
 
