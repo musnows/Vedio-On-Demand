@@ -163,6 +163,31 @@ typedef std::pair<MYSQL_RES*,std::mutex*> MYSQL_RES_PAIR;
         // 取消拷贝构造和赋值重载
         VideoTbMysql(const VideoTbMysql& _v) = delete;
         VideoTbMysql& operator==(const VideoTbMysql& _v)= delete;
+
+        // 从结果集中获取视频信息到json中
+        void GetVideoInfo(const MYSQL_ROW& row,Json::Value* video)
+        {
+            (*video)["id"] = row[0];
+            (*video)["name"] = row[1];
+            (*video)["info"] = row[2];
+            (*video)["video"] = row[3];
+            (*video)["cover"] = row[4];
+            (*video)["category"] = std::atoi(row[5]);
+            (*video)["user_id"] = std::atoi(row[6]);
+            (*video)["insert_time"] = row[7];
+        }
+        // 从结果集中获取用户信息
+        void GetUserInfo(const MYSQL_ROW& row,Json::Value* user_info)
+        {
+            (*user_info)["id"] = std::atoi(row[0]);
+            (*user_info)["name"] = row[1];
+            (*user_info)["email"] = row[2];
+            (*user_info)["avatar"] = row[3];
+            (*user_info)["passwd_md5"] = row[4];
+            (*user_info)["passwd_salt"] = row[5];
+            (*user_info)["insert_time"] = row[6];
+        }
+
     public:
         // 释放msyql操作句柄
         ~VideoTbMysql(){
@@ -253,12 +278,7 @@ typedef std::pair<MYSQL_RES*,std::mutex*> MYSQL_RES_PAIR;
             for (int i = 0; i < num_rows; i++) {
                 MYSQL_ROW row = mysql_fetch_row(res);//获取每一行的列数
                 Json::Value video;
-                video["id"] = row[0];
-                video["name"] = row[1];
-                video["info"] = row[2];
-                video["video"] = row[3];
-                video["cover"] = row[4];
-                video["insert_time"] = row[5]; //mysql中存放的就是可读时间 （其实存时间戳更好）
+                GetVideoInfo(row,&video);
                 //json list
                 video_s->append(video);
             }
@@ -306,12 +326,8 @@ typedef std::pair<MYSQL_RES*,std::mutex*> MYSQL_RES_PAIR;
             // }
             MYSQL_ROW row = mysql_fetch_row(res);
             // 这里是调用参数里面的对象的[]重载，所以需要解引用
-            (*video)["id"] = video_id;
-            (*video)["name"] = row[1];
-            (*video)["info"] = row[2];
-            (*video)["video"] = row[3];
-            (*video)["cover"] = row[4];
-            (*video)["insert_time"] = row[5];
+            GetVideoInfo(row,video);
+            // 释放结果集
             mysql_free_result(res);
             _mutex.unlock();
             _log.info("Video SelectOne","id '%s' found",video_id.c_str());
@@ -349,11 +365,7 @@ typedef std::pair<MYSQL_RES*,std::mutex*> MYSQL_RES_PAIR;
             for (int i = 0; i < num_rows; i++) {
                 MYSQL_ROW row = mysql_fetch_row(res);//获取每一行的列数
                 Json::Value video;
-                video["id"] = row[0];
-                video["name"] = row[1];
-                video["info"] = row[2];
-                video["video"] = row[3];
-                video["cover"] = row[4];
+                GetVideoInfo(row,&video);
                 //json list
                 video_s->append(video);
             }
@@ -511,14 +523,9 @@ typedef std::pair<MYSQL_RES*,std::mutex*> MYSQL_RES_PAIR;
 
             MYSQL_ROW row = mysql_fetch_row(res);
             // 开始获取用户信息
-            (*user_info)["id"] = std::atoi(row[0]);
-            (*user_info)["name"] = row[1];
-            (*user_info)["email"] = row[2];
-            (*user_info)["avatar"] = row[3];
-            (*user_info)["passwd_md5"] = row[4];
-            (*user_info)["passwd_salt"] = row[5];
-            (*user_info)["insert_time"] = row[6];
-            mysql_free_result(res); // 释放结果集
+            GetUserInfo(row,user_info);
+            // 释放结果集
+            mysql_free_result(res); 
 
             _log.info("User SelectEmail","user email '%s' found",user_email.c_str());
             return true;
@@ -555,14 +562,9 @@ typedef std::pair<MYSQL_RES*,std::mutex*> MYSQL_RES_PAIR;
 
             MYSQL_ROW row = mysql_fetch_row(res);
             // 开始获取用户信息
-            (*user_info)["id"] = std::atoi(row[0]);
-            (*user_info)["name"] = row[1];
-            (*user_info)["email"] = row[2];
-            (*user_info)["avatar"] = row[3];
-            (*user_info)["passwd_md5"] = row[4];
-            (*user_info)["passwd_salt"] = row[5];
-            (*user_info)["insert_time"] = row[6];
-            mysql_free_result(res); // 释放结果集
+            GetUserInfo(row,user_info);
+            // 释放结果集
+            mysql_free_result(res); 
 
             _log.info("User SelectId","user id '%u' found",user_id);
             return true;
