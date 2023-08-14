@@ -639,9 +639,9 @@ namespace vod
             _log.info("Server.UserLogin", "login success [%s]", email.content.c_str());
         }
         // session有效性检查
-        static void UserInfo(const httplib::Request &req, httplib::Response &rsp)
+        static void UserInfoMy(const httplib::Request &req, httplib::Response &rsp)
         {
-            _log.info("Server.UserInfo", "get recv from %s", req.remote_addr.c_str());
+            _log.info("Server.UserInfoMy", "get recv from %s", req.remote_addr.c_str());
             // 设置响应头
             rsp.set_header("Content-Type", "application/json");
             rsp.status = 403; // 暂时认为不行
@@ -653,7 +653,8 @@ namespace vod
                 if(session_id == "" || session_id.size() != SESSION_ID_SIZE) // 没有找到session id
                 {
                     rsp.body = R"({"code":403, "message":"cookie中不存在有效session_id"})";
-                    _log.warning("Server.UserInfo", "cant get session_id in cookie or session_id size not match");
+                    _log.warning("Server.UserInfoMy", "cant get session_id in cookie or session_id size not match");
+                    return;
                 }
                 // 获取到了，检查是否有效
                 Json::Value user_info;
@@ -661,34 +662,76 @@ namespace vod
                 {
                     rsp.status = 503;
                     rsp.body = R"({"code":503, "message":"获取session_id信息失败或sessionid失效"})";
-                    _log.error("Server.UserInfo", "get session id failed [%s]", session_id.c_str());
+                    _log.error("Server.UserInfoMy", "get session id failed [%s]", session_id.c_str());
                     return;
                 }
                 // 有效
                 rsp.status = 200;
                 // rsp.body = R"({"code":0, "message":"session_id有效"})";
                 try{
+                    // 删除用户密码
+                    user_info.removeMember("passwd_salt");
+                    user_info.removeMember("passwd_md5");
+                    // 构造响应
                     Json::Value res_json;
                     res_json["code"] = 0;
                     res_json["message"] = user_info;
                     JsonUtil::Serialize(res_json, &rsp.body);
-                    _log.info("Server.UserInfo", "good session_id");
+                    _log.info("Server.UserInfoMy", "good session_id");
                     return ;
                 }
                 catch(...)
                 {
                     rsp.status = 503;
                     rsp.body = R"({"code":503, "message":"未知错误"})";
-                    _log.debug("Server.UserInfo","err!!!!");
+                    _log.debug("Server.UserInfoMy","err!!!!");
+                    return;
                 }
             }
             else // 没有cookie
             { 
                 rsp.body = R"({"code":403, "message":"cookie不存在"})";
-                _log.warning("Server.UserInfo", "cant get cookie in headers");
+                _log.warning("Server.UserInfoMy", "cant get cookie in headers");
             }
         }
 
+        static void UserInfoId(const httplib::Request &req, httplib::Response &rsp)
+        {
+            _log.info("Server.UserInfoId", "get recv from %s", req.remote_addr.c_str());
+            rsp.set_header("Content-Type", "application/json");
+            // 判断是否有param参数，有则认为是请求特定用户id
+            Json::Value user_info;
+            std::string user_id_str = req.matches[1]; // 从正则中获取用户id
+            if(user_id_str.size() == 0)
+            {
+                rsp.status = 400;
+                rsp.body = R"({"code":400, "message":"请求中不包含用户id"})";
+                _log.warning("Server.UserInfoId", "cant get user_id in params");
+                return;
+            }
+            else
+            {
+                size_t user_id = std::atoi(user_id_str.c_str());
+                if(!VideoTable->UserSelectId(user_id,&user_info))
+                {
+                    rsp.status = 503;
+                    rsp.body = R"({"code":503, "message":"获取user_id信息失败"})";
+                    _log.error("Server.UserInfoId", "query user_id failed [%s]", user_id_str.c_str());
+                    return;
+                }
+                // 删除用户密码
+                user_info.removeMember("passwd_salt");
+                user_info.removeMember("passwd_md5");
+                // 构造响应
+                rsp.status = 200;
+                Json::Value res_json;
+                res_json["code"] = 0;
+                res_json["message"] = user_info;
+                JsonUtil::Serialize(res_json, &rsp.body);
+                _log.info("Server.UserInfoId", "user_id found [%s]",user_id_str.c_str());
+                return ;
+            }
+        }
     public:
         Server(size_t port = DEFAULT_SERVER_PORT)
             : _port(port)
@@ -745,7 +788,8 @@ namespace vod
             _srv.Post("/usr/login", UserLogin);
             _srv.Post("/usr/register", UserRegister);
             _srv.Post("/usr/email/verify", UserEmailVerify); // 发送验证邮件
-            _srv.Get("/usr/info", UserInfo); // sid有效性检查
+            _srv.Get("/usr/info", UserInfoMy); // 当前用户信息获取
+            _srv.Get("/usr/info/([0-9]+)", UserInfoId); // 指定用户信息获取
 
             // 3.指定端口，启动服务器
             //   绑定之前，先检查端口是否被使用

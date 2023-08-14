@@ -139,6 +139,9 @@
                               <span class="meta-i">
                                  <i class="fa fa-clock-o"></i>{{video.insert_time}}
                               </span>
+                              <span class="meta-i" v-if="video_user_info">
+                                 <i class="fa fa-user"></i>{{video_user_info.name}}
+                              </span>
                               <!-- <span class="meta-i">
                                  <i class="fa fa-user"></i><a href="#" class="author" title="John Doe">John Doe</a>
                               </span> -->
@@ -294,9 +297,12 @@
       el: '#myapp',
       data: {
          author: "musnow",
-         video: {},
+         video: {
+            
+         },
          video_view: {},
-         user: null
+         user: null,
+         video_user_info: null
       },
       methods: {
          get_param: function (name) {
@@ -309,7 +315,25 @@
                type: "get",
                context: this,
                success: function (result, status, xhr) {
-                  this.video = result;
+                  if(xhr.status === 200)
+                  {
+                     this.video = result;
+                     // 获取上传了这个视频的用户id
+                     $.ajax({
+                        url: "/usr/info/" + this.video.user_id,
+                        type: "get",
+                        context: this,
+                        success: function (result, status, xhr) {
+                           if (result.code === 0) {
+                              this.video_user_info = result.message;
+                           }
+                        }
+                     })
+                     return true;
+                  }
+                  else{
+                     alert("获取当前视频信息失败！");
+                  }
                }
             })
          },
@@ -430,9 +454,9 @@
          }
       }
    });
-   app.get_user_info();
-   app.get_video();
-   app.get_video_view();
+   app.get_user_info(); // 获取当前登录用户的信息
+   app.get_video();        // 获取视频信息
+   app.get_video_view();   // 获取视频观看信息
 </script>
 
 </html>
