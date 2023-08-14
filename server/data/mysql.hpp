@@ -620,6 +620,7 @@ typedef std::pair<MYSQL_RES*,std::mutex*> MYSQL_RES_PAIR;
             // map里面有，但是失效了
             if((it != _session_map.end()) && (cur_timestamp >= ((it->second).second + SESSION_ID_OUTDATE)))  
             {
+                _session_map.erase(session_id);
                 _log.info("UserSessionCheck","session outdate | map");
                 return false;
             }
@@ -664,6 +665,8 @@ typedef std::pair<MYSQL_RES*,std::mutex*> MYSQL_RES_PAIR;
                 }
                 // 没有过期
                 user_id = std::atoi(row[1]); // 获取用户id
+                // 将session 插入到map里面
+                _session_map.insert({session_id,{user_id,std::atoi(row[3])}}); // 插入到map中
                 mysql_free_result(res); // 释放结果集
             }
             // 检查用户id有效性
