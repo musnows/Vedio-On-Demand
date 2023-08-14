@@ -672,6 +672,10 @@ typedef std::pair<MYSQL_RES*,std::mutex*> MYSQL_RES_PAIR;
             // 检查用户id有效性
             if(user_id == 0) return false;// 用户id为0代表失效
             // 通过获取到的用户id来查询数据库
+            // 这里二次调用会导致死锁（函数里面又申请了锁）
+            // 所以进这个函数之前需要先解锁
+            lock.unlock();
+            // 解锁后再进入此函数
             if(!UserSelectId(user_id,user_info))
             {
                 _log.error("UserSessionCheck","query user '%u' failed",user_id);

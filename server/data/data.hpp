@@ -5,7 +5,7 @@
 
 namespace vod{
 #define VEDIO_INFO_MAX_LEN 4096 //视频简介不能过长
-#define SESSION_ID_OUTDATE 3600 // session超时时间为一小时
+#define SESSION_ID_OUTDATE 300 // session超时时间(秒)
 #define SESSION_ID_SIZE 32 // session字符串长度
     // 视频数据库父类（抽象类）
     class VideoTb{
