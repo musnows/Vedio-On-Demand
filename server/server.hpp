@@ -482,6 +482,33 @@ namespace vod
             rsp.body = R"({"code":0, "message":"邮箱验证码发送成功"})";
             _log.info("Server.UserEmailVerify", "send email verify success! [%s]", email.content.c_str());
         }
+        // 登录
+        static void UserLogin(const httplib::Request &req, httplib::Response &rsp)
+        {
+            _log.info("Server.UserLogin", "get recv from %s", req.remote_addr.c_str());
+            rsp.set_header("Content-Type", "application/json");
+            httplib::MultipartFormData email = req.get_file_value("useremail");   // 用户邮箱
+            httplib::MultipartFormData password = req.get_file_value("password");   // 用户密码
+            // 1.先查询这个邮箱是否存在，并验证密码
+            Json::Value user;
+            if(!VideoTable->UserPasswdCheck(email.content,password.content,&user))
+            {
+                rsp.status = 400;
+                rsp.body = R"({"code":400, "message":"用户不存在或密码错误"})";
+                _log.error("Server.UserLogin", "email not found or err", email.content.c_str());
+                return;
+            }
+            // 2.用户存在，返回基本信息给前端
+            // 删除密码
+            user.removeMember("passwd_salt");
+            user.removeMember("passwd_md5");
+            // 序列化作为body
+            JsonUtil::Serialize(user, &rsp.body);
+            rsp.status = 200;
+            // 设置cookie
+            rsp.set_header("Set-Cookie","vod_sid=123456");
+            _log.info("Server.UserLogin", "login success [%s]", email.content.c_str());
+        }
 
     public:
         Server(size_t port = DEFAULT_SERVER_PORT)
@@ -536,6 +563,7 @@ namespace vod
             _srv.Get("/video", GetAll);
             _srv.Post("/video", Insert);
             // 用户相关
+            _srv.Post("/usr/login", UserLogin);
             _srv.Post("/usr/register", UserRegister);
             _srv.Post("/usr/email/verify", UserEmailVerify); // 发送验证邮件
 

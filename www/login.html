@@ -9,17 +9,11 @@
     <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
     <title>登录 | 视频点播系统</title>
     <!-- Bootstrap core CSS -->
-    <link href="css/bootstrap.css" rel="stylesheet">
+    <link rel="stylesheet" href="css/bootstrap.css">
     <!-- Custom styles for this template -->
     <link rel="stylesheet" href="css/screen.css">
     <link rel="stylesheet" href="css/animation.css">
-    <!--[if IE 7]>
-      
-      <![endif]-->
     <link rel="stylesheet" href="css/font-awesome.css">
-    <!--[if lt IE 8]>
-      <link rel="stylesheet" href="css/ie.css" type="text/css" media="screen, projection">
-      <![endif]-->
     <link href="css/lity.css" rel="stylesheet">
 </head>
 
@@ -33,15 +27,6 @@
                     <a class="main-logo" href="#"><img src="img/main-logo.png" class="main-logo img-responsive"
                             alt="Muvee Reviews" title="Muvee Reviews"></a>
                 </div>
-                <div class="col-lg-6 hidden-md text-center hidden-sm hidden-xs">
-
-                </div>
-                <!-- <div class="col-lg-3 col-md-6 col-sm-7 hidden-xs">
-                    <div class="right-box">
-                        <button type="button" class="access-btn" data-toggle="modal"
-                            data-target="#enquirypopup">新增视频</button>
-                    </div>
-                </div> -->
             </div>
             <!-- MENU -->
             <div class="row home-mega-menu ">
@@ -90,12 +75,12 @@
                                                 <span class="fa fa-user login-inputicon"
                                                     style="color:rgb(116, 116, 116);  margin-left: -302px;"></span>
                                                 <input style="color:rgb(0, 0, 0);" type="text" placeholder="输入您的邮箱"
-                                                    required>
+                                                    name="useremail" id="useremail" required>
                                             </div>
                                             <div class="input-group">
                                                 <span class="fa fa-lock login-inputicon"
                                                     style="color:rgb(116, 116, 116);  margin-left: -302px;"></span>
-                                                <input style="color:rgb(0, 0, 0);" type="password" id="password"
+                                                <input style="color:rgb(0, 0, 0);" type="password" name="password" id="password"
                                                     placeholder="输入您的密码" required>
                                             </div>
                                             <!-- <div class="checkbox">
@@ -139,5 +124,52 @@
         </div>
     </div>
 </body>
+
+
+<script>
+
+    function sleep(time) {
+        return new Promise((resolve) => setTimeout(resolve, time));
+    }
+    document.addEventListener("DOMContentLoaded", function () {
+        var form = document.querySelector("form[data-abide]");
+        form.addEventListener("submit", function (event) {
+            event.preventDefault(); // 阻止默认表单提交行为
+
+            var userEmailInput = document.getElementById("useremail");
+            var passwordInput = document.getElementById("password");
+
+            if (userEmailInput.value.trim() === "" || passwordInput.value.trim() === "") {
+                // 邮箱或密码没有填写
+                alert("请填写邮箱和密码");
+            } else {
+                // 获取表单数据
+                var formData = new FormData(form);
+
+                // 发送 POST 请求到 /usr/login 接口
+                fetch("/usr/login", {
+                    method: "POST",
+                    body: formData
+                })
+                    .then(response => {
+                        if (response.ok) {
+                            // 登录成功
+                            window.alert("登录成功！");
+                            // 睡1000ms,之后执行下面的内容
+                            sleep(1000).then(() => {
+                                window.location.href = "/index.html";
+                            });
+                        } else {
+                            // 其他状态码处理
+                            throw new Error("登录失败");
+                        }
+                    })
+                    .catch(error => {
+                        console.error("错误:", error);
+                    });
+            }
+        });
+    });
+</script>
 
 </html>
