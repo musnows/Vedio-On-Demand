@@ -124,6 +124,38 @@ namespace vod
         }
         return {has_cookie,session_id};
     }
+    // 从req中取出cookie，检查session id是否有效，并设置响应
+    // - need_redirect：如果需要将用户重定向到主页，设置此参数为true
+    bool SessionCheckHandler(const httplib::Request &req, httplib::Response &rsp,Json::Value* user_info,bool need_redirect = false)
+    {
+        auto sid_ret = GetSessionIdFromCookie(req);
+        if (sid_ret.first) // 有cookie
+        {
+            std::string session_id = sid_ret.second;
+            // 没有找到session_id 或者 长度不匹配
+            if(session_id == "" || session_id.size() != SESSION_ID_SIZE){ 
+                return false;
+            }
+            // 获取到了，检查是否有效
+            Json::Value user_info;
+            // 这里面是session过期了
+            if(!VideoTable->UserSessionCheck(session_id,&user_info))
+            {
+                rsp.status = 503;
+                rsp.body = R"({"code":503, "message":"获取session_id信息失败或sessionid失效"})";
+                std::string cookie_str = USER_COOKIE_KEY;
+                cookie_str += "=0; path=/";
+                rsp.set_header("Set-Cookie",cookie_str);
+                if(need_redirect){
+                    rsp.set_header("Location","/"); // 重定向到主页
+                }
+                return false;
+            }
+            // 有效
+            return true;
+        }
+        return false;
+    }
 
     // 服务器端
     class Server
@@ -131,6 +163,7 @@ namespace vod
     private:
         size_t _port;         // 服务器监听端口
         httplib::Server _srv; // 用于搭建http服务器
+        static Json::Value _temp_user; // 用于session校验时候传值，不实际使用
         // 出现数据库写入异常的通用处理
         static void MysqlErrHandler(const std::string &def_name, httplib::Response &rsp)
         {
@@ -180,9 +213,15 @@ namespace vod
         static void Insert(const httplib::Request &req, httplib::Response &rsp)
         {
             _log.info("Server.Insert", "post recv from %s", req.remote_addr.c_str());
+            // 检查用户cookie
+            if(!SessionCheckHandler(req,rsp,&_temp_user)){
+                _log.info("Server.Insert","session time out");
+                return; // sid过期了，直接跳出
+            }
+            // 需要检查的新视频字段
             static const std::vector<const char *> ins_key = {"name", "info", "video", "cover"};
             // 使用循环来判断文件中是否含有这些字段，没有就返回400
-            if (!ReqKeyCheck("Server.Insert", ins_key, req, rsp))
+            if (!ReqKeyCheck("Server.Insert", ins_key, req, rsp)) 
                 return;
             // 从请求的req中取出对应的字段，
             httplib::MultipartFormData name = req.get_file_value("name");   // 视频名称
@@ -251,9 +290,13 @@ namespace vod
         static void Update(const httplib::Request &req, httplib::Response &rsp)
         {
             _log.info("Server.Update", "put recv from %s", req.remote_addr.c_str());
+            // 检查用户cookie
+            if(!SessionCheckHandler(req,rsp,&_temp_user)){
+                _log.info("Server.Update","session time out");
+                return; // sid过期了，直接跳出
+            }
+            // 错误，这里不应该检查有没有对应键值，因为请求是通过axjx传过来的，并不是form表单传入。参数是在body的json里面
             // static const std::vector<const char *> upd_key = {"name", "info"};
-            // 错误，这里不应该检查有没有对应键值，因为请求是通过axjx传过来的，并不是form表单传入
-            // 使用循环来判断文件中是否含有这些字段，没有就返回400
             // if (!ReqKeyCheck("Server.Update", upd_key, req, rsp))
             //     return;
             std::string video_id = req.matches[1];                                   // 从匹配的正则中获取到视频id
@@ -262,15 +305,7 @@ namespace vod
             if (!IsVideoExists("Server.Update", video_id, rsp))
                 return;
             // 直接序列化body就行了
-            // // 取出对应内容
-            // httplib::MultipartFormData name = req.get_file_value("name"); // 视频名称
-            // httplib::MultipartFormData info = req.get_file_value("info"); // 视频简介
-            // 获取视频标题和简介的内容
-            // std::string video_name = name.content;
-            // std::string video_info = info.content;
             Json::Value video;
-            // video["name"] = video_name;
-            // video["info"] = video_info;
             JsonUtil::UnSerialize(req.body,&video);//反序列化
             if (!VideoTable->Update(video_id, video))
                 return MysqlErrHandler("Server.Update", rsp);
@@ -285,6 +320,11 @@ namespace vod
         static void Delete(const httplib::Request &req, httplib::Response &rsp)
         {
             _log.info("Server.Delete", "delete recv from %s", req.remote_addr.c_str());
+            // 检查用户cookie
+            if(!SessionCheckHandler(req,rsp,&_temp_user)){
+                _log.info("Server.Delete","session time out");
+                return; // sid过期了，直接跳出
+            }
             std::string video_id = req.matches[1];                                   // 从匹配的正则中获取到视频id
             _log.info("Server.Delete", "video id recv! id: [%s]", video_id.c_str()); // 将id括起来可以看出来是否有空格
             if (!IsVideoExists("Server.Delete", video_id, rsp))
@@ -383,6 +423,11 @@ namespace vod
         static void UpdateVideoUp(const httplib::Request &req, httplib::Response &rsp)
         {
             _log.info("Server.UpdateVideoUp", "get recv from %s", req.remote_addr.c_str());
+            // 检查用户cookie
+            if(!SessionCheckHandler(req,rsp,&_temp_user)){
+                _log.info("Server.UpdateVideoUp","session time out");
+                return; // sid过期了，直接跳出
+            }
             std::string video_id = req.matches[1];                                   // 从匹配的正则中获取到视频id
             _log.info("Server.UpdateVideoUp", "video id recv! id: [%s]", video_id.c_str()); // 将id括起来可以看出来是否有空格
             if (!IsVideoExists("Server.UpdateVideoUp", video_id, rsp))
@@ -397,6 +442,11 @@ namespace vod
         static void UpdateVideoDown(const httplib::Request &req, httplib::Response &rsp)
         {
             _log.info("Server.UpdateVideoDown", "get recv from %s", req.remote_addr.c_str());
+            // 检查用户cookie
+            if(!SessionCheckHandler(req,rsp,&_temp_user)){
+                _log.info("Server.UpdateVideoDown","session time out");
+                return; // sid过期了，直接跳出
+            }
             std::string video_id = req.matches[1];                                   // 从匹配的正则中获取到视频id
             _log.info("Server.UpdateVideoDown", "video id recv! id: [%s]", video_id.c_str()); // 将id括起来可以看出来是否有空格
             if (!IsVideoExists("Server.UpdateVideoDown", video_id, rsp))
@@ -412,6 +462,10 @@ namespace vod
         static void UserRegister(const httplib::Request &req, httplib::Response &rsp)
         {
             _log.info("Server.UserRegister", "get recv from %s", req.remote_addr.c_str());
+            // 检查用户cookie。如果sid过期了，虽然清除sid，但是不做跳出处理
+            if(!SessionCheckHandler(req,rsp,&_temp_user)){
+                _log.info("Server.UserRegister","session time out | clear it");
+            }
             httplib::MultipartFormData name = req.get_file_value("username");   // 用户昵称
             httplib::MultipartFormData email = req.get_file_value("useremail");   // 用户邮箱
             httplib::MultipartFormData avatar = req.get_file_value("useravatar"); // 用户头像
@@ -533,6 +587,7 @@ namespace vod
             httplib::MultipartFormData password = req.get_file_value("password");   // 用户密码
             // 1.先查询这个邮箱是否存在，并验证密码
             Json::Value user;
+            _log.debug("Server.UserLogin","enter passwd check");
             if(!VideoTable->UserPasswdCheck(email.content,password.content,&user))
             {
                 rsp.status = 400;
@@ -565,9 +620,9 @@ namespace vod
             _log.info("Server.UserLogin", "login success [%s]", email.content.c_str());
         }
         // session有效性检查
-        static void UserSessionCheck(const httplib::Request &req, httplib::Response &rsp)
+        static void UserInfo(const httplib::Request &req, httplib::Response &rsp)
         {
-            _log.info("Server.UserLogin", "get recv from %s", req.remote_addr.c_str());
+            _log.info("Server.UserInfo", "get recv from %s", req.remote_addr.c_str());
             // 设置响应头
             rsp.set_header("Content-Type", "application/json");
             rsp.status = 403; // 暂时认为不行
@@ -579,7 +634,7 @@ namespace vod
                 if(session_id == "" || session_id.size() != SESSION_ID_SIZE) // 没有找到session id
                 {
                     rsp.body = R"({"code":403, "message":"cookie中不存在有效session_id"})";
-                    _log.warning("Server.UserSessionCheck", "cant get session_id in cookie or session_id size not match");
+                    _log.warning("Server.UserInfo", "cant get session_id in cookie or session_id size not match");
                 }
                 // 获取到了，检查是否有效
                 Json::Value user_info;
@@ -587,19 +642,31 @@ namespace vod
                 {
                     rsp.status = 503;
                     rsp.body = R"({"code":503, "message":"获取session_id信息失败或sessionid失效"})";
-                    _log.error("Server.UserSessionCheck", "get session id failed [%s]", session_id.c_str());
+                    _log.error("Server.UserInfo", "get session id failed [%s]", session_id.c_str());
                     return;
                 }
                 // 有效
                 rsp.status = 200;
-                rsp.body = R"({"code":0, "message":"session_id有效"})";
-                _log.info("Server.UserSessionCheck", "good session_id");
-                return ;
+                // rsp.body = R"({"code":0, "message":"session_id有效"})";
+                try{
+                    Json::Value res_json;
+                    res_json["code"] = 0;
+                    res_json["message"] = user_info;
+                    JsonUtil::Serialize(res_json, &rsp.body);
+                    _log.info("Server.UserInfo", "good session_id");
+                    return ;
+                }
+                catch(...)
+                {
+                    rsp.status = 503;
+                    rsp.body = R"({"code":503, "message":"未知错误"})";
+                    _log.debug("Server.UserInfo","err!!!!");
+                }
             }
             else // 没有cookie
             { 
                 rsp.body = R"({"code":403, "message":"cookie不存在"})";
-                _log.warning("Server.UserSessionCheck", "cant get cookie in headers");
+                _log.warning("Server.UserInfo", "cant get cookie in headers");
             }
         }
 
@@ -659,7 +726,7 @@ namespace vod
             _srv.Post("/usr/login", UserLogin);
             _srv.Post("/usr/register", UserRegister);
             _srv.Post("/usr/email/verify", UserEmailVerify); // 发送验证邮件
-            _srv.Get("/usr/session", UserSessionCheck); // sid有效性检查
+            _srv.Get("/usr/info", UserInfo); // sid有效性检查
 
             // 3.指定端口，启动服务器
             //   绑定之前，先检查端口是否被使用
@@ -672,6 +739,7 @@ namespace vod
             return true;
         }
     };
+    Json::Value Server::_temp_user;// 类外初始化
 }
 
 #endif

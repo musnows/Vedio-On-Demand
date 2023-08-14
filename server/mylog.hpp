@@ -182,7 +182,7 @@ struct LogTime{
     const char* Logger::_log_level[] = {"DEBUG", "INFO", "WARINING", "ERROR", "FATAL"};
     // 实例化一个全局对象（用单例的话，调用会非常麻烦，所以暂时不做）
     // 如果问道了，这种log类的对象资源消耗较低，可以使用`饿汉`单例在main之前实例化单例   
-    Logger _log(LogType::Info,2048,LogTime::String);
+    Logger _log(LogType::Debug,2048,LogTime::String);
 }
 
 #endif

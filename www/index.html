@@ -80,7 +80,8 @@
 						<div class="collapse navbar-collapse js-navbar-collapse megabg dropshd ">
 							<ul class="nav navbar-nav">
 								<li><a href="index.html">视频点播</a></li>
-								<li><a href="login.html">登录</a></li>
+								<li v-if="!user"><a href="login.html">登录</a></li>
+								<li v-else><a href="uinfo.html">{{user.name}}</a></li>
 							</ul>
 							<div class="search-block">
 								<!-- <form method="get" action="/video"> -->
@@ -240,7 +241,8 @@
 		el: '#myapp',
 		data: {
 			author: "musnow",
-			videos: []
+			videos: [],
+			user: null  // 初始值为null表示未登录
 		},
 		methods: {
 			get_allvideos: function () {
@@ -264,10 +266,26 @@
 						this.videos = result;
 					}
 				})
-			}
+			},
+			get_user_info: function () {
+				$.ajax({
+					url: "/usr/info",
+					type: "get",
+					context: this,
+					success: function (result, status, xhr) {
+						if (result.code === 0) {
+							this.user = result.message;
+						}
+						else {
+							window.alert("登录信息已失效，请重新登录！");
+						}
+					}
+				})
+			},
 		}
 	});
 	// 写在这里代表初始化页面的时候要调用一下
+	app.get_user_info();
 	app.get_allvideos();
 
 	// function searchVideo(keyword) {
