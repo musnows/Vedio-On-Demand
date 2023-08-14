@@ -54,9 +54,9 @@
 
             </div>
             <div class="col-lg-3 col-md-6 col-sm-7 hidden-xs">
-               <div class="right-box">
-                  <button type="button" class="access-btn" v-on:click="delete_video()">视频删除</button>
-                  <button type="button" class="access-btn" data-toggle="modal" data-target="#enquirypopup">视频修改</button>
+               <div class="right-box" v-if="user !== null && user.id === video.user_id">
+                  <button type="button" class="access-btn" v-on:click="delete_video()" >视频删除</button>
+                  <button type="button" class="access-btn" data-toggle="modal" data-target="#enquirypopup" v-bind:disabled="user === null">视频修改</button>
                </div>
             </div>
          </div>
@@ -295,7 +295,8 @@
       data: {
          author: "musnow",
          video: {},
-         video_view: {}
+         video_view: {},
+         user: null
       },
       methods: {
          get_param: function (name) {
@@ -313,27 +314,53 @@
             })
          },
          update_video: function () {
-            $.ajax({
-               url: "/video/" + this.video.id,
-               type: "put",
-               data: JSON.stringify(this.video),
-               context: this,
-               success: function (result, status, xhr) {
-                  alert("修改视频信息成功");
-                  window.location.reload();
-               }
-            })
+            if (this.user !== null) {
+               $.ajax({
+                  url: "/video/" + this.video.id,
+                  type: "put",
+                  data: JSON.stringify(this.video),
+                  context: this,
+                  success: function (result, status, xhr) {
+                     if (result.code === 0) {
+                        alert("修改视频信息成功");
+                        window.location.reload();
+                     }
+                     else if (result.code === 403)
+                     {
+                        alert("你没有权限修改本视频信息");
+                     }
+                     else {
+                        window.alert("更新视频信息失败！");
+                     }
+                  }
+               })
+            } else {
+               alert("请登录后再进行操作");
+            }
          },
          delete_video: function () {
-            $.ajax({
-               url: "/video/" + this.video.id,
-               type: "delete",
-               context: this,
-               success: function (result, status, xhr) {
-                  alert("删除视频成功");
-                  window.location.href = "/index.html";
-               }
-            })
+            if (this.user !== null) {
+               $.ajax({
+                  url: "/video/" + this.video.id,
+                  type: "delete",
+                  context: this,
+                  success: function (result, status, xhr) {
+                     if (result.code === 0) {
+                        alert("删除视频成功");
+                        window.location.href = "/index.html";
+                     }
+                     else if (result.code === 403)
+                     {
+                        alert("你没有权限删除本视频");
+                     }
+                     else {
+                        window.alert("删除视频失败！");
+                     }
+                  }
+               })
+            } else {
+               alert("请登录后再进行操作");
+            }
          },
          get_video_view: function () {
             var id = this.get_param("id");
@@ -347,28 +374,36 @@
             })
          },
          update_video_view_up: function () {
-            $.ajax({
-               url: "/video/view/up/" + this.video.id,
-               type: "put",
-               context: this,
-               success: function (result, status, xhr) {
-                  this.video_view.up++;
-                  alert("点赞成功");
-                  //window.location.reload();
-               }
-            })
+            if (this.user !== null) {
+               $.ajax({
+                  url: "/video/view/up/" + this.video.id,
+                  type: "put",
+                  context: this,
+                  success: function (result, status, xhr) {
+                     this.video_view.up++;
+                     alert("点赞成功");
+                     //window.location.reload();
+                  }
+               })
+            } else {
+               alert("请登录后再进行操作");
+            }
          },
          update_video_view_down: function () {
-            $.ajax({
-               url: "/video/view/down/" + this.video.id,
-               type: "put",
-               context: this,
-               success: function (result, status, xhr) {
-                  this.video_view.down++;
-                  alert("点踩成功");
-                  //window.location.reload();
-               }
-            })
+            if (this.user !== null) {
+               $.ajax({
+                  url: "/video/view/down/" + this.video.id,
+                  type: "put",
+                  context: this,
+                  success: function (result, status, xhr) {
+                     this.video_view.down++;
+                     alert("点踩成功");
+                     //window.location.reload();
+                  }
+               })
+            } else {
+               alert("请登录后再进行操作");
+            }
          },
          get_user_info: function () {
 				$.ajax({
