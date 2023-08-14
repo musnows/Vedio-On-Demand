@@ -20,6 +20,7 @@ namespace vod
 #define EMAIL_VERIFY_TIME  900 // 邮箱验证有效时间为15分钟
 #define EMAIL_VERIFY_INTERVAL  60 // 邮箱验证吗发送间隔为60秒
 #define EMAIL_VERIFY_HTML_PATH "./server/email/email_verify.html"
+#define USER_COOKIE_KEY "vod_sid" // 用户的cookie标识
 
     VideoTb* VideoTable; // 数据库类 父类指针
     Json::Value SvConf;  // 服务器的配置文件，因为服务器内函数都是static函数，必须放在类外头
@@ -90,6 +91,23 @@ namespace vod
             return false;
         }
         return true;
+    }
+    // 获取一个特定的cookie字段，如果没有找到，返回空
+    std::string GetCookieValue(const std::string& cookie, const std::string& key) 
+    {
+        std::size_t start = cookie.find(key + "=");
+        if (start == std::string::npos) {
+            return ""; // Cookie 中没有找到指定的键
+        }
+
+        start += key.length() + 1; // 跳过键和等号的长度，指向值的起始位置
+
+        std::size_t end = cookie.find(';', start); // 查找分号，标识值的结束位置
+        if (end == std::string::npos) {
+            end = cookie.length(); // 若未找到分号，则整个字符串都是值
+        }
+
+        return cookie.substr(start, end - start); // 提取值并返回
     }
 
     // 服务器端
@@ -313,13 +331,20 @@ namespace vod
             // /video 或 /video?s="关键字"
             bool search_flag = false; // 默认所有查询
             std::string search_key;
-            if (req.has_param("s")) // 判断是否有s的query参数
+            // 处理用户的cookie
+            if (req.has_header("Cookie")) {
+                std::string cookie_str = req.get_header_value("Cookie");
+                std::string session_id = GetCookieValue(cookie_str,USER_COOKIE_KEY);
+                // std::cout << USER_COOKIE_KEY << " = " << session_id << std::endl;
+            }
+            // 判断是否有s的query参数，如果有代表是在搜素
+            if (req.has_param("s")) 
             {
                 search_flag = true; // 模糊匹配查询
                 search_key = req.get_param_value("s");
             }
             Json::Value videos;
-            if (!search_flag)
+            if (!search_flag) // 不是搜索单个，获取全部
             {
                 if (!VideoTable->SelectAll(&videos))
                 {
@@ -327,7 +352,7 @@ namespace vod
                 }
                 _log.info("Server.GetAll","Select All success");
             }
-            else
+            else // 模糊匹配
             {
                 if (!VideoTable->SelectLike(search_key, &videos))
                 {
@@ -506,7 +531,7 @@ namespace vod
             JsonUtil::Serialize(user, &rsp.body);
             rsp.status = 200;
             // 设置cookie
-            rsp.set_header("Set-Cookie","vod_sid=123456");
+            rsp.set_header("Set-Cookie","vod_sid=123456; path=/");
             _log.info("Server.UserLogin", "login success [%s]", email.content.c_str());
         }
 
