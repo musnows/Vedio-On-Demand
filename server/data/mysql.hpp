@@ -180,6 +180,7 @@ typedef std::pair<MYSQL_RES*,std::mutex*> MYSQL_RES_PAIR;
         void GetUserInfo(const MYSQL_ROW& row,Json::Value* user_info)
         {
             (*user_info)["id"] = std::atoi(row[0]);
+            _log.debug("GetUserInfo","user_id %s",row[0]);
             (*user_info)["name"] = row[1];
             (*user_info)["email"] = row[2];
             (*user_info)["avatar"] = row[3];
@@ -212,14 +213,16 @@ typedef std::pair<MYSQL_RES*,std::mutex*> MYSQL_RES_PAIR;
             std::unique_lock<std::mutex> lock(_mutex);
             if(!check_video_info("Video Insert",video))return false;
             //插入的sql语句
-            #define INSERT_VIDEO "insert into %s (name,info,video,cover) values ('%s','%s','%s','%s');"
+            #define INSERT_VIDEO_MYSQL "insert into %s (name,info,video,cover,category,user_id) values ('%s','%s','%s','%s',%u,%u);"
             std::string sql;
             sql.resize(2048+video["info"].asString().size());//扩容，避免简介超过预定义长度
-            sprintf((char*)sql.c_str(),INSERT_VIDEO,_video_table.c_str(),
+            sprintf((char*)sql.c_str(),INSERT_VIDEO_MYSQL,_video_table.c_str(),
                                     video["name"].asCString(),
                                     video["info"].asCString(),
                                     video["video"].asCString(),
-                                    video["cover"].asCString());
+                                    video["cover"].asCString(),
+                                    1,
+                                    video["user_id"].asUInt());
             return MysqlQuery(_mysql,sql);//执行语句
         }
         // 修改-传入视频id和新的信息(暂时不支持修改视频封面和路径)

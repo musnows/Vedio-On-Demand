@@ -137,9 +137,8 @@ namespace vod
                 return false;
             }
             // 获取到了，检查是否有效
-            Json::Value user_info;
-            // 这里面是session过期了
-            if(!VideoTable->UserSessionCheck(session_id,&user_info))
+            // 进这个if是session过期了
+            if(!VideoTable->UserSessionCheck(session_id,user_info))
             {
                 rsp.status = 503;
                 rsp.body = R"({"code":503, "message":"获取session_id信息失败或sessionid失效"})";
@@ -214,7 +213,8 @@ namespace vod
         {
             _log.info("Server.Insert", "post recv from %s", req.remote_addr.c_str());
             // 检查用户cookie
-            if(!SessionCheckHandler(req,rsp,&_temp_user)){
+            Json::Value user_info;
+            if(!SessionCheckHandler(req,rsp,&user_info)){
                 _log.info("Server.Insert","session time out");
                 return; // sid过期了，直接跳出
             }
@@ -275,6 +275,7 @@ namespace vod
             video_json["info"] = video_info;
             video_json["video"] = video_path;
             video_json["cover"] = image_path;
+            video_json["user_id"] = user_info["id"].asUInt();
             // 注意json的键值不能出错，否则会抛出异常（异常处理太麻烦了）
             if (!VideoTable->Insert(video_json))
                 return MysqlErrHandler("Server.Insert", rsp);
@@ -291,7 +292,8 @@ namespace vod
         {
             _log.info("Server.Update", "put recv from %s", req.remote_addr.c_str());
             // 检查用户cookie
-            if(!SessionCheckHandler(req,rsp,&_temp_user)){
+            Json::Value user_info;
+            if(!SessionCheckHandler(req,rsp,&user_info)){
                 _log.info("Server.Update","session time out");
                 return; // sid过期了，直接跳出
             }
@@ -307,6 +309,14 @@ namespace vod
             // 直接序列化body就行了
             Json::Value video;
             JsonUtil::UnSerialize(req.body,&video);//反序列化
+            // 检查视频的用户id是否是当前登录的用户id
+            if(user_info["id"].asString() != video["user_id"].asString()){
+                rsp.status = 403;
+                rsp.body = R"({"code":403, "message":"无法操作非当前用户上传的视频"})";
+                _log.error("Server.Update", "update forbidden | video [%s]", video["id"].asCString());
+                return;
+            }
+            // 用户id匹配，更新视频
             if (!VideoTable->Update(video_id, video))
                 return MysqlErrHandler("Server.Update", rsp);
             // 更新成功
@@ -321,7 +331,8 @@ namespace vod
         {
             _log.info("Server.Delete", "delete recv from %s", req.remote_addr.c_str());
             // 检查用户cookie
-            if(!SessionCheckHandler(req,rsp,&_temp_user)){
+            Json::Value user_info;
+            if(!SessionCheckHandler(req,rsp,&user_info)){
                 _log.info("Server.Delete","session time out");
                 return; // sid过期了，直接跳出
             }
@@ -330,14 +341,22 @@ namespace vod
             if (!IsVideoExists("Server.Delete", video_id, rsp))
                 return;
             // 视频id存在，删除
-            // 1.删除本地文件
+            // 1.获取视频信息
             Json::Value video;
             if (!VideoTable->SelectOne(video_id, &video))
                 return MysqlErrHandler("Server.Delete", rsp);
+            // 检查视频的用户id是否是当前登录的用户id
+            if(user_info["id"].asString() != video["user_id"].asString()){
+                rsp.status = 403;
+                rsp.body = R"({"code":403, "message":"无法操作非当前用户上传的视频"})";
+                _log.error("Server.Update", "update forbidden | video [%s]", video["id"].asCString());
+                return;
+            }
+            // 2.删除本地文件
             // 本地文件删除失败也不要紧，主要是得删除掉数据库中的数据
             FileUtil(SvConf["root"].asString() + video["cover"].asString()).DeleteFile();
             FileUtil(SvConf["root"].asString() + video["video"].asString()).DeleteFile();
-            // 2.删除数据库信息
+            // 3.删除数据库信息
             if (!VideoTable->Delete(video_id))
                 return MysqlErrHandler("Server.Delete", rsp);
             // 删除成功
