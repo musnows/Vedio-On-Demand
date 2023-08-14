@@ -594,7 +594,7 @@ typedef std::pair<MYSQL_RES*,std::mutex*> MYSQL_RES_PAIR;
         bool UserSessionGet(size_t user_id,const std::string& user_ip,std::string* const session_id)
         {
             #define INSERT_SESSION "insert into tb_session (id,user_id,user_ip) values ('%s',%u,'%s');"
-            (*session_id) = HashUtil::GenerateRandomString(32); // 直接生成一个随机字符串作为id
+            (*session_id) = HashUtil::GenerateRandomString(SESSION_ID_SIZE); // 直接生成一个随机字符串作为id
             // 执行sql
             std::string sql;
             sql.resize(2048); // 扩容

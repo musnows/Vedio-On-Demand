@@ -536,7 +536,7 @@ namespace vod
             if(!VideoTable->UserSessionGet(user["id"].asUInt(),req.remote_addr,&session_id))
             {
                 rsp.status = 503;
-                rsp.body = R"({"code":503, "message":"获取session id失败"})";
+                rsp.body = R"({"code":503, "message":"获取session_id失败"})";
                 _log.error("Server.UserLogin", "get session id failed [%s]", user["email"].asCString());
                 return;
             }
@@ -548,6 +548,44 @@ namespace vod
             cookie_str += "; path=/";
             rsp.set_header("Set-Cookie",cookie_str);
             _log.info("Server.UserLogin", "login success [%s]", email.content.c_str());
+        }
+        // session有效性检查
+        static void UserSessionCheck(const httplib::Request &req, httplib::Response &rsp)
+        {
+            _log.info("Server.UserLogin", "get recv from %s", req.remote_addr.c_str());
+            // 设置响应头
+            rsp.set_header("Content-Type", "application/json");
+            rsp.status = 403; // 暂时认为不行
+            // 判断header是否拥有cookie
+            if (req.has_header("Cookie")) 
+            {
+                std::string cookie_str = req.get_header_value("Cookie");
+                std::string session_id = GetCookieValue(cookie_str,USER_COOKIE_KEY);
+                if(session_id == "" || session_id.size() != SESSION_ID_SIZE) // 没有找到session id
+                {
+                    rsp.body = R"({"code":403, "message":"cookie中不存在有效session_id"})";
+                    _log.warning("Server.UserSessionCheck", "cant get session_id in cookie or session_id size not match");
+                }
+                // 获取到了，检查是否有效
+                Json::Value user_info;
+                if(!VideoTable->UserSessionCheck(session_id,&user_info))
+                {
+                    rsp.status = 503;
+                    rsp.body = R"({"code":503, "message":"获取session_id信息失败或sessionid失效"})";
+                    _log.error("Server.UserSessionCheck", "get session id failed [%s]", session_id.c_str());
+                    return;
+                }
+                // 有效
+                rsp.status = 200;
+                rsp.body = R"({"code":0, "message":"session_id有效"})";
+                _log.info("Server.UserSessionCheck", "good session_id");
+                return ;
+            }
+            else // 没有cookie
+            { 
+                rsp.body = R"({"code":403, "message":"cookie不存在"})";
+                _log.warning("Server.UserSessionCheck", "cant get cookie in headers");
+            }
         }
 
     public:
@@ -606,6 +644,7 @@ namespace vod
             _srv.Post("/usr/login", UserLogin);
             _srv.Post("/usr/register", UserRegister);
             _srv.Post("/usr/email/verify", UserEmailVerify); // 发送验证邮件
+            _srv.Get("/usr/session", UserSessionCheck); // sid有效性检查
 
             // 3.指定端口，启动服务器
             //   绑定之前，先检查端口是否被使用
