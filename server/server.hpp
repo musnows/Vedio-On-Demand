@@ -275,6 +275,7 @@ namespace vod
             video_json["info"] = video_info;
             video_json["video"] = video_path;
             video_json["cover"] = image_path;
+            video_json["category"] = 1;
             video_json["user_id"] = user_info["id"].asUInt();
             // 注意json的键值不能出错，否则会抛出异常（异常处理太麻烦了）
             if (!VideoTable->Insert(video_json))
@@ -482,9 +483,9 @@ namespace vod
         {
             _log.info("Server.UserRegister", "get recv from %s", req.remote_addr.c_str());
             // 检查用户cookie。如果sid过期了，虽然清除sid，但是不做跳出处理
-            if(!SessionCheckHandler(req,rsp,&_temp_user)){
-                _log.info("Server.UserRegister","session time out | clear it");
-            }
+            // if(!SessionCheckHandler(req,rsp,&_temp_user)){
+            //     _log.info("Server.UserRegister","session time out | clear it");
+            // }
             httplib::MultipartFormData name = req.get_file_value("username");   // 用户昵称
             httplib::MultipartFormData email = req.get_file_value("useremail");   // 用户邮箱
             httplib::MultipartFormData avatar = req.get_file_value("useravatar"); // 用户头像
@@ -519,11 +520,11 @@ namespace vod
             if((verify_temp->second).first != email_verify.content)
             {
                 rsp.body = R"({"code":400, "message":"邮箱验证码错误"})";
-                _log.warning("Server.UserRegister", "email '%s' verify code err",email.content.c_str());
+                _log.warning("Server.UserRegister", "email '%s' verify code err | '%s' != '%s'",email.content.c_str(),(verify_temp->second).first.c_str(),email_verify.content.c_str());
                 return;
             }
             // 走到这里代表验证码正确！将这个邮箱从map中删除
-            EmailVerifyMap.erase(verify_temp->first);
+            EmailVerifyMap.erase(email.content);
             // 创建用户信息json
             Json::Value user;
             user["name"] = name.content;
