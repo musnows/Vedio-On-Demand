@@ -245,9 +245,16 @@ typedef std::pair<MYSQL_RES*,std::mutex*> MYSQL_RES_PAIR;
         {
             std::unique_lock<std::mutex> lock(_mutex);
             if(!check_video_id("Video Delete",video_id))return false;
-            #define DELETE_VIDEO "delete from %s where id='%s';"
+            // 删除观看记录
+            #define DELETE_VIDEO_VIEW "delete from %s where id = '%s';"
             std::string sql;
             sql.resize(1024);//扩容
+            sprintf((char*)sql.c_str(),DELETE_VIDEO_VIEW,_views_table.c_str(),video_id.c_str());
+            if(!MysqlQuery(_mysql,sql)){//执行语句
+                return false; // 没有成功就提前退出
+            }
+            // 删除视频
+            #define DELETE_VIDEO "delete from %s where id='%s';"
             sprintf((char*)sql.c_str(),DELETE_VIDEO,_video_table.c_str(),video_id.c_str());
             return MysqlQuery(_mysql,sql);//执行语句
         }

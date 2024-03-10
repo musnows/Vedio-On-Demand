@@ -15,9 +15,9 @@
 #include <openssl/sha.h>
 // 需要注意jsoncpp的安装路径，查看/usr/include目录
 // Centos8上安装路径是/usr/include/json
-#include <json/json.h>
+// #include <json/json.h>
 // 测试在deepin上，jsoncpp的安装路径是/usr/include/jsoncpp/json
-// #include <jsoncpp/json/json.h>
+#include <jsoncpp/json/json.h>
 #include "mylog.hpp"
 
 
