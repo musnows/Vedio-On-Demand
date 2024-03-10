@@ -100,7 +100,7 @@ openssl version  # 判断是否成功安装
 ## 3.ToDo
 
 - [x] data 中的数据类进行单例封装
-- [x] 提供 sqlite3 数据库选项
+- [ ] 提供 sqlite3 数据库选项（未全部完成）
 - [ ] 提供 dockerfile 进行 docker 部署
 - [x] 新增 用户注册/登录接口
 - [x] 新增 用户邮箱验证
